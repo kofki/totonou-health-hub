@@ -1,0 +1,44 @@
+# Java / Gradle
+api/build/
+api/.gradle/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+dist/
+
+# Node / Expo / React Native
+node_modules/
+.expo/
+.expo-shared/
+mobile/ios/
+mobile/android/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+gcp-credentials*.json
+
+# ML artifacts
+ml-service/models/**/*.pt
+ml-service/models/**/*.pth
+ml-service/models/**/*.onnx
+ml-service/models/**/*.safetensors
+ml-service/notebooks/**/*.ipynb_checkpoints/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store

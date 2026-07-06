@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: health-hub-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/healthhub}
+    username: ${SPRING_DATASOURCE_USERNAME:healthhub}
+    password: ${SPRING_DATASOURCE_PASSWORD:healthhub}
+  jpa:
+    # TODO: P1-06 — choose a schema strategy when you design entities
+    # (update is fine for early dev; validate + Flyway migrations is the production pattern)
+    hibernate:
+      ddl-auto: ${SPRING_JPA_DDL_AUTO:update}
+    open-in-view: false
+
+gcs:
+  endpoint: ${GCS_ENDPOINT:http://localhost:4443}
+  bucket: ${GCS_BUCKET:healthhub-images}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

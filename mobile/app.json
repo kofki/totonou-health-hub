@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Health Hub",
+    "slug": "health-hub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "healthhub",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kenzofukuda.healthhub"
+    },
+    "android": {
+      "package": "com.kenzofukuda.healthhub",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
