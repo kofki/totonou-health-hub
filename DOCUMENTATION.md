@@ -1,7 +1,14 @@
-# Health Hub — Project Documentation
+# Totonou Health Hub — Project Documentation
 
 Living document. Architecture, decisions, roadmap, and ticket index.
-Last updated: 2026-07-05.
+Last updated: 2026-07-06.
+
+**Naming note:** the project was renamed from "Health Hub" to "Totonou Health Hub" on
+2026-07-06. "Totonou" (整う) is Japanese for reaching a state of perfect physical/mental
+balance — the word wellness/sauna culture uses for full-body equilibrium, which fits a
+system optimizing your whole health picture. Internal directory names (`health-hub/`,
+`com.healthhub` Java package) were kept as-is to avoid a disruptive rename mid-scaffold;
+only user-facing names (app display name, README, docs) changed.
 
 ---
 

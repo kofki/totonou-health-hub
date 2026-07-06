@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Health Hub",
-    "slug": "health-hub",
+    "name": "Totonou Health Hub",
+    "slug": "totonou-health-hub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "healthhub",
+    "scheme": "totonou",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.kenzofukuda.healthhub"
+      "bundleIdentifier": "com.kenzofukuda.totonouhealthhub"
     },
     "android": {
-      "package": "com.kenzofukuda.healthhub",
+      "package": "com.kenzofukuda.totonouhealthhub",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

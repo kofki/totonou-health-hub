@@ -1,4 +1,4 @@
-# Health Hub ("Blueprint OS")
+# Totonou Health Hub
 
 Personal health command center: Garmin Connect + VeSync ingestion, custom analytics
 dashboard, CV-powered food/calorie tracking, body-fat and acne estimation, and meal
