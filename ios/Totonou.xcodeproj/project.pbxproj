@@ -300,15 +300,15 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Totonou;
+				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Totonou sets alarms for quests you choose.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Totonou shows your events and plans quests around them.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Totonou reads steps, sleep, runs and mindful minutes to complete your quests for you.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Totonou does not write health data.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Totonou turns reminders due today into quests.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Totonou reads steps, sleep, runs and mindful minutes to complete your quests for you.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Totonou does not write health data.";
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Totonou shows your events and plans quests around them.";
-				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Totonou turns reminders due today into quests.";
-				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Totonou sets alarms for quests you choose.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -333,15 +333,15 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Totonou;
+				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Totonou sets alarms for quests you choose.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Totonou shows your events and plans quests around them.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Totonou reads steps, sleep, runs and mindful minutes to complete your quests for you.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Totonou does not write health data.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Totonou turns reminders due today into quests.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Totonou reads steps, sleep, runs and mindful minutes to complete your quests for you.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Totonou does not write health data.";
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Totonou shows your events and plans quests around them.";
-				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Totonou turns reminders due today into quests.";
-				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Totonou sets alarms for quests you choose.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -453,11 +453,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		AA0000000000000000000072 /* Supabase */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AA0000000000000000000071 /* XCRemoteSwiftPackageReference "supabase-swift" */;
-			productName = Supabase;
-		};
 		AA0000000000000000000041 /* TotonouCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TotonouCore;
@@ -465,6 +460,11 @@
 		AA0000000000000000000042 /* TotonouCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TotonouCore;
+		};
+		AA0000000000000000000072 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA0000000000000000000071 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

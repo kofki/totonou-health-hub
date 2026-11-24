@@ -15,20 +15,27 @@ level 1 hunter with no arc, and Today asks you to write one.
 |---|---|
 | Arcs | You describe a chapter; a planner turns it into goals and daily quests, which appear on Today every day |
 | Planner and coach AI | Apple's on-device model (Foundation Models, iOS 26 with Apple Intelligence on). Without it: keyword rules for the plan, computed findings for the coach |
-| Quests, XP, levels, stats, earned screen time | Working |
-| Penalty zone and recovery quests | Working |
+| Quests, XP, levels, stats, earned screen time | Working. Each level pays a stat point and 10 banked minutes; titles every 5 levels; rank-ups (every 10) add a streak freeze and an emergency pass; each 10 points in a stat adds 5% XP to its quests |
+| Streaks, freezes, milestone chests, daily clear bonus, achievements | Rules and engine working and tested. Their full-screen moments are designed in Figma and not built yet; until then only level-ups show an overlay |
+| Penalty zone and recovery quests | Working. A "Must do" switch in the quest composer is still to come, so nothing is critical yet |
 | Bosses | You add a deadline and its tasks; ticking tasks drains its HP |
 | Coach | Reads your last 7 days of quests, your stats and your bosses; suggests quests you can add with one tap |
 | Weekly chart | Status shows planned and finished quests per day (Swift Charts) |
 | Reminders | Local notifications for today's open quests and the next three days. Off until you switch them on in Status |
 | Sounds | Quest complete, level up, boss hit. Switch in Status |
-| Cloud backup (Supabase) | Profile and today's quests are saved after every change. Reading them back is Exercise 10 |
-| Auto-completion | Nothing completes itself until Exercise 6 (HealthKit) is written. Pull down on Today to check |
+| Cloud backup (Supabase) | Profile and today's quests are saved after every change. Reading them back is Exercise 10. Reward fields are not uploaded until `20261124120000_rewards.sql` is applied |
+| Apple Health | Steps, running distance, mindful minutes and sleep. Quests named like "8,000 steps", "Run 5 km" or "Meditate 10 min" complete themselves, also in the background |
+| Garmin | Through Apple Health: turn on Garmin Connect → Settings → Apple Health |
+| Calendars (Google included) | Read through EventKit. Add Google under iOS Settings → Calendar → Accounts. Daily quests move off busy blocks. The Today view of your events is not built yet |
+| Apple Reminders | Reminders due today become quests; finishing either side finishes the other |
+| Alarms | AlarmKit on iOS 26: per-quest alarms and a daily wake-up alarm, Done and Snooze. The switches that turn them on are not built yet. iOS gives no app access to Clock app alarms |
+| Widget | Shows your real next quest, level and streak |
 | Shield / intercept | In-app preview only |
-| Widget | Builds; shows sample text until Exercise 7 |
 | Meal plans, sleep quests, benchmarks vs. your age | Removed with the mock data. They need real sources first |
-| Go back end, Garmin, Google Calendar, USDA, Claude API | Not started |
-| Screen Time API blocking | Not started — needs a paid Apple Developer account and the Family Controls entitlement |
+| Go back end, USDA, Claude API | Not started |
+| Screen Time API blocking | Not started. It needs a paid Apple Developer account: a free team cannot use the Family Controls capability. Designed in Figma |
+
+Designs for the new screens: [Totonou — Rewards and connections](https://www.figma.com/design/j8aW56j4oZgsnb2LTFZek3) (Figma).
 
 ## Run it
 
@@ -40,7 +47,7 @@ The pure-Swift rules have tests:
 cd ios/TotonouCore && swift test
 ```
 
-Seven of those tests fail until the first two exercises in [LEARN.md](LEARN.md) are done.
+Nine of those tests fail until Exercises 2, 12 and 14 in [LEARN.md](LEARN.md) are done.
 
 ## Supabase
 
