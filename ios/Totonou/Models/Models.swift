@@ -34,6 +34,40 @@ final class Player {
     /// Start-of-day dates on which at least one quest was completed.
     var completionDays: [Date]
 
+    // Rewards. Every new property has a default value: that is what lets
+    // SwiftData upgrade an existing store on its own ("lightweight migration")
+    // instead of failing to open data saved by an older build.
+
+    /// Level-up points waiting to be put into a stat.
+    var unspentStatPoints: Int = 0
+    /// Each one saves the streak on one missed day. At most `Rewards.maxFreezes`.
+    var streakFreezes: Int = 0
+    /// Days a freeze was spent on. They count as completion days for the streak.
+    var frozenDays: [Date] = []
+    /// Short unlocks that work even during a penalty. Earned at rank-ups.
+    var emergencyPasses: Int = 1
+    /// When each pass was used, so escapes are on the record.
+    var passLog: [Date] = []
+    var titles: [String] = []
+    var activeTitle: String?
+    /// `Achievement` raw values.
+    var achievementsRaw: [String] = []
+    /// Streak milestones already opened during the current streak.
+    var claimedMilestones: [Int] = []
+    /// The last day the daily clear bonus was paid.
+    var lastClearDay: Date?
+    /// Days on which every quest was cleared.
+    var clearDays: [Date] = []
+    var lastLevelUpAt: Date?
+
+    // Lifetime counts that achievements are judged on.
+    var questsDone: Int = 0
+    var autoDone: Int = 0
+    var bossesDefeated: Int = 0
+    var recoveries: Int = 0
+    var earlyQuests: Int = 0
+    var mustDoDone: Int = 0
+
     init(name: String, totalXP: Int = 0, strength: Int = 0, endurance: Int = 0, intellect: Int = 0,
          discipline: Int = 0, recovery: Int = 0, bankedMinutes: Int = 0, completionDays: [Date] = []) {
         self.name = name
@@ -48,6 +82,24 @@ final class Player {
     }
 
     var progress: LevelProgress { LevelCurve.progress(forTotalXP: totalXP) }
+
+    var achievements: Set<Achievement> { Set(achievementsRaw.compactMap(Achievement.init(rawValue:))) }
+
+    /// The streak, counting days saved by a freeze.
+    func streak(on date: Date = .now) -> Int {
+        StreakCalculator.currentStreak(completionDays: completionDays + frozenDays, today: date)
+    }
+
+    /// How many days in a row every quest was cleared.
+    func clearStreak(on date: Date = .now) -> Int {
+        StreakCalculator.currentStreak(completionDays: clearDays, today: date)
+    }
+
+    func facts(on date: Date = .now) -> AchievementFacts {
+        AchievementFacts(questsDone: questsDone, autoDone: autoDone, bossesDefeated: bossesDefeated,
+                         recoveries: recoveries, streak: streak(on: date), clearStreak: clearStreak(on: date),
+                         earlyQuests: earlyQuests, mustDoDone: mustDoDone, level: progress.level)
+    }
 
     func value(for stat: Stat) -> Int {
         switch stat {

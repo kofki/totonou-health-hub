@@ -19,6 +19,10 @@ import Foundation
 // while loops, guard.
 //
 // Check your work:  cd ios/TotonouCore && swift test --filter Streak
+//
+// Status: handed over to Claude on 2026-11-24 (owner's choice). Solved below.
+// Days saved by a streak freeze are passed in with the completion days, so
+// this function does not need to know freezes exist.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public enum StreakCalculator {
@@ -27,7 +31,20 @@ public enum StreakCalculator {
         today: Date,
         calendar: Calendar = .current
     ) -> Int {
-        // TODO(you): replace this line.
-        return 0
+        // A Set of start-of-day dates makes duplicates and order irrelevant.
+        let days = Set(completionDays.map { calendar.startOfDay(for: $0) })
+        var day = calendar.startOfDay(for: today)
+        if !days.contains(day) {
+            // Today is not over yet: the streak is alive if yesterday counted.
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: day) else { return 0 }
+            day = yesterday
+        }
+        var streak = 0
+        while days.contains(day) {
+            streak += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            day = previous
+        }
+        return streak
     }
 }

@@ -12,13 +12,59 @@ struct RewardNotice: Identifiable, Equatable {
     var minutes = 0
 }
 
+/// A level-up, with what it paid and what earned it.
+struct LevelUpEvent: Equatable {
+    let from: Int
+    let to: Int
+    /// One per level crossed.
+    let rewards: [LevelReward]
+    /// "6 quests cleared", "2 finished from real data", "Strength +4 · Endurance +2".
+    let evidence: [String]
+
+    var isRankUp: Bool { rewards.contains(where: \.isRankUp) }
+    var minutes: Int { rewards.reduce(0) { $0 + $1.minutes } }
+    var statPoints: Int { rewards.reduce(0) { $0 + $1.statPoints } }
+    var titles: [String] { rewards.compactMap(\.title) }
+    var freezes: Int { rewards.reduce(0) { $0 + $1.freezes } }
+    var passes: Int { rewards.reduce(0) { $0 + $1.passes } }
+}
+
+/// The end-of-day recap, shown once every quest of the day is cleared.
+struct DayClearEvent: Equatable {
+    let done: Int
+    let minutes: Int
+    let statLines: String
+    let streak: Int
+    let tomorrow: QuestIdea?
+}
+
+/// A moment big enough for a full-screen celebration. Shown one at a time.
+struct Celebration: Identifiable, Equatable {
+    enum Kind: Equatable {
+        case levelUp(LevelUpEvent)
+        case milestone(StreakMilestone)
+        case achievement(Achievement)
+        case dayClear(DayClearEvent)
+        case freezeUsed(days: Int, streak: Int)
+    }
+
+    let id = UUID()
+    let kind: Kind
+}
+
 /// The game loop: completing quests, paying rewards, auto-completion, penalties.
 /// Views never change XP or stats themselves — they ask the engine.
 @MainActor
 @Observable
 final class QuestEngine {
-    /// Set to the new level when the player levels up. The root view shows an overlay.
-    var levelUp: Int?
+    /// Waiting celebrations, oldest first. The root view shows the first one.
+    private(set) var celebrations: [Celebration] = []
+    var celebration: Celebration? { celebrations.first }
+
+    func dismissCelebration() {
+        if !celebrations.isEmpty { celebrations.removeFirst() }
+    }
+
     /// Set whenever something pays out. The root view clears it after a moment.
     var notice: RewardNotice?
     var isSyncing = false
@@ -116,38 +162,170 @@ final class QuestEngine {
         quest.completedAt = now
         quest.autoCompleted = auto
         Sounds.play(.complete)
-        if !quest.isRecovery {
-            reward(player, xp: quest.rank.xp)
+        if quest.isRecovery {
+            player.recoveries += 1
+        } else {
+            // Mastery: the stat's value before this quest decides the bonus.
+            let xp = Rewards.questXP(rank: quest.rank, statValue: player.value(for: quest.stat))
             player.add(quest.rank.statPoints, to: quest.stat)
             player.bankedMinutes += quest.rank.earnedMinutes
-            notice = RewardNotice(xp: quest.rank.xp, stat: quest.stat,
+            player.questsDone += 1
+            if auto { player.autoDone += 1 }
+            if quest.isCritical { player.mustDoDone += 1 }
+            let clock = Calendar.current.dateComponents([.hour, .minute], from: now)
+            if (clock.hour ?? 12) * 60 + (clock.minute ?? 0) < 6 * 60 + 30 { player.earlyQuests += 1 }
+            reward(player, xp: xp, context: quest.modelContext, now: now)
+            notice = RewardNotice(xp: xp, stat: quest.stat,
                                   points: quest.rank.statPoints, minutes: quest.rank.earnedMinutes)
         }
         let day = Calendar.current.startOfDay(for: now)
         if !player.completionDays.contains(day) {
             player.completionDays.append(day)
         }
+        checkMilestone(player, now: now)
+        checkAchievements(player, now: now)
+        checkDayClear(player, context: quest.modelContext, arc: quest.arc, now: now)
     }
 
     /// Land a hit on a boss by finishing one of its subtasks.
-    func strike(_ task: BossTask, player: Player) {
+    func strike(_ task: BossTask, player: Player, now: Date = .now) {
         guard !task.isDone else { return }
         task.isDone = true
         Sounds.play(.hit)
         player.add(1, to: .discipline)
         let defeated = task.boss?.isDefeated ?? false
-        reward(player, xp: defeated ? 300 : 25)
+        if defeated { player.bossesDefeated += 1 }
+        reward(player, xp: defeated ? 300 : 25, context: task.modelContext, now: now)
         notice = RewardNotice(xp: defeated ? 300 : 25, stat: .discipline, points: 1)
+        checkAchievements(player, now: now)
     }
 
-    private func reward(_ player: Player, xp: Int) {
+    /// Adds XP and pays every level it crosses.
+    private func reward(_ player: Player, xp: Int, context: ModelContext?, now: Date) {
         let before = player.progress.level
         player.totalXP += xp
         let after = player.progress.level
-        if after > before {
-            levelUp = after
-            Sounds.play(.levelUp)
+        guard after > before else { return }
+        let rewards = Rewards.rewards(from: before, to: after)
+        for reward in rewards {
+            player.unspentStatPoints += reward.statPoints
+            player.bankedMinutes += reward.minutes
+            player.streakFreezes = min(Rewards.maxFreezes, player.streakFreezes + reward.freezes)
+            player.emergencyPasses += reward.passes
+            if let title = reward.title, !player.titles.contains(title) {
+                player.titles.append(title)
+                player.activeTitle = title
+            }
         }
+        let event = LevelUpEvent(from: before, to: after, rewards: rewards,
+                                 evidence: evidence(since: player.lastLevelUpAt, context: context))
+        player.lastLevelUpAt = now
+        celebrations.append(Celebration(kind: .levelUp(event)))
+        Sounds.play(.levelUp)
+    }
+
+    /// What earned a level: the quests finished since the last one.
+    private func evidence(since: Date?, context: ModelContext?) -> [String] {
+        guard let context else { return [] }
+        let start = since ?? .distantPast
+        let descriptor = FetchDescriptor<Quest>(predicate: #Predicate { $0.completedAt != nil && !$0.isRecovery })
+        let done = ((try? context.fetch(descriptor)) ?? []).filter { ($0.completedAt ?? .distantPast) > start }
+        guard !done.isEmpty else { return [] }
+        var lines = ["\(done.count) quest\(done.count == 1 ? "" : "s") cleared"]
+        let auto = done.filter(\.autoCompleted).count
+        if auto > 0 { lines.append("\(auto) finished from real data") }
+        lines.append(Self.statLine(for: done))
+        return lines
+    }
+
+    /// "Strength +4 · Endurance +2", biggest first.
+    static func statLine(for quests: [Quest]) -> String {
+        var gains: [Stat: Int] = [:]
+        for quest in quests { gains[quest.stat, default: 0] += quest.rank.statPoints }
+        return gains.sorted { $0.value > $1.value }.prefix(3)
+            .map { "\($0.key.title) +\($0.value)" }
+            .joined(separator: " · ")
+    }
+
+    // MARK: Streaks, clears, achievements
+
+    /// Spend freezes on missed days, and forget milestones of a streak that ended.
+    /// Runs at launch and whenever the app comes back.
+    func refreshStreak(player: Player, now: Date = .now) {
+        let days = StreakFreeze.daysToFreeze(completionDays: player.completionDays, frozenDays: player.frozenDays,
+                                             available: player.streakFreezes, today: now)
+        if !days.isEmpty {
+            player.frozenDays += days
+            player.streakFreezes -= days.count
+            celebrations.append(Celebration(kind: .freezeUsed(days: days.count, streak: player.streak(on: now))))
+        }
+        if player.streak(on: now) < (player.claimedMilestones.max() ?? 0) {
+            player.claimedMilestones = []
+        }
+    }
+
+    private func checkMilestone(_ player: Player, now: Date) {
+        let streak = player.streak(on: now)
+        if streak < (player.claimedMilestones.max() ?? 0) { player.claimedMilestones = [] }
+        guard let milestone = StreakMilestones.reached(streak: streak),
+              !player.claimedMilestones.contains(milestone.days) else { return }
+        player.claimedMilestones.append(milestone.days)
+        player.bankedMinutes += milestone.minutes
+        player.streakFreezes = min(Rewards.maxFreezes, player.streakFreezes + milestone.freezes)
+        celebrations.append(Celebration(kind: .milestone(milestone)))
+    }
+
+    private func checkAchievements(_ player: Player, now: Date) {
+        let new = player.facts(on: now).earned.subtracting(player.achievements)
+        for achievement in Achievement.allCases where new.contains(achievement) {
+            player.achievementsRaw.append(achievement.rawValue)
+            if !player.titles.contains(achievement.title) { player.titles.append(achievement.title) }
+            celebrations.append(Celebration(kind: .achievement(achievement)))
+        }
+    }
+
+    /// When the last quest of the day is done: pay the clear bonus and queue the recap.
+    private func checkDayClear(_ player: Player, context: ModelContext?, arc: Arc?, now: Date) {
+        guard let context else { return }
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: now)
+        guard player.lastClearDay.map({ !calendar.isDate($0, inSameDayAs: now) }) ?? true,
+              let end = calendar.date(byAdding: .day, value: 1, to: start) else { return }
+        let descriptor = FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= start && $0.scheduledAt < end })
+        let today = ((try? context.fetch(descriptor)) ?? []).filter { !$0.isRecovery }
+        guard !today.isEmpty, today.allSatisfy(\.isDone) else { return }
+        player.lastClearDay = start
+        if !player.clearDays.contains(start) { player.clearDays.append(start) }
+        player.bankedMinutes += Rewards.dailyClearMinutes
+        reward(player, xp: Rewards.dailyClearXP, context: context, now: now)
+        let earned = today.reduce(0) { $0 + $1.rank.earnedMinutes } + Rewards.dailyClearMinutes
+        let tomorrow = arc?.plan.min { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
+        celebrations.append(Celebration(kind: .dayClear(DayClearEvent(
+            done: today.count, minutes: earned, statLines: Self.statLine(for: today),
+            streak: player.streak(on: now), tomorrow: tomorrow))))
+        checkAchievements(player, now: now)
+    }
+
+    // MARK: Spending rewards
+
+    func spendStatPoint(on stat: Stat, player: Player) {
+        guard player.unspentStatPoints > 0 else { return }
+        player.unspentStatPoints -= 1
+        player.add(1, to: stat)
+    }
+
+    func wear(_ title: String?, player: Player) {
+        guard title == nil || player.titles.contains(title!) else { return }
+        player.activeTitle = title
+    }
+
+    /// Spends one emergency pass. Returns false when none are left.
+    @discardableResult
+    func usePass(player: Player, now: Date = .now) -> Bool {
+        guard player.emergencyPasses > 0 else { return false }
+        player.emergencyPasses -= 1
+        player.passLog.append(now)
+        return true
     }
 
     // MARK: Auto-completion

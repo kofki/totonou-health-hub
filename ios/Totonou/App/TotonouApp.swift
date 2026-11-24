@@ -80,8 +80,8 @@ struct RootView: View {
             }
             .allowsHitTesting(false)
 
-            if let level = engine.levelUp {
-                LevelUpOverlay(level: level) { engine.levelUp = nil }
+            if let celebration = engine.celebration, case .levelUp(let event) = celebration.kind {
+                LevelUpOverlay(level: event.to) { engine.dismissCelebration() }
             }
         }
         .foregroundStyle(Ink.washi)
@@ -93,10 +93,19 @@ struct RootView: View {
             await engine.refreshReminders(quests: today, plan: arcs.first?.plan ?? [])
             await engine.backUp(player: player, quests: today)
         }
-        .task { Bootstrap.start(context) }
+        // Until each celebration has its own screen, skip the kinds the overlay cannot show.
+        .onChange(of: engine.celebration) { _, celebration in
+            if let celebration, case .levelUp = celebration.kind {} else if celebration != nil { engine.dismissCelebration() }
+        }
+        .task {
+            Bootstrap.start(context)
+            if let player = players.first { engine.refreshStreak(player: player) }
+        }
         // Coming back to the app on a new day creates that day's quests.
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Bootstrap.rollDailyQuests(context) }
+            guard phase == .active else { return }
+            Bootstrap.rollDailyQuests(context)
+            if let player = players.first { engine.refreshStreak(player: player) }
         }
     }
 
