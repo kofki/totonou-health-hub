@@ -36,9 +36,25 @@ final class SupabaseCloudStore: CloudStore {
 
     func save(profile: ProfileRecord) async throws {
         let userID = try await client.auth.session.user.id
-        try await client.from("profiles")
-            .upsert(ProfileRow(userID: userID, profile), onConflict: "user_id")
-            .execute()
+        do {
+            try await client.from("profiles")
+                .upsert(ProfileRow(userID: userID, profile), onConflict: "user_id")
+                .execute()
+        } catch where Self.isMissingColumn(error) {
+            // The rewards migration has not been run on this project yet.
+            // Save what the database knows, so backups keep working meanwhile.
+            var base = profile
+            base.rewards = nil
+            try await client.from("profiles")
+                .upsert(ProfileRow(userID: userID, base), onConflict: "user_id")
+                .execute()
+        }
+    }
+
+    /// PostgREST answers PGRST204 when a row names a column the table lacks.
+    private static func isMissingColumn(_ error: Error) -> Bool {
+        let text = String(describing: error)
+        return text.contains("PGRST204") || text.contains("column")
     }
 
     func save(quests: [QuestRecord]) async throws {
@@ -99,8 +115,10 @@ private struct ProfileRow: Encodable, Sendable {
     let bankedMinutes: Int
     let completionDays: [String]
     let updatedAt: String
+    let rewards: ProfileRewards?
 
     init(userID: UUID, _ profile: ProfileRecord) {
+        rewards = profile.rewards
         self.userID = userID
         name = profile.name
         totalXP = profile.totalXP
@@ -127,6 +145,46 @@ private struct ProfileRow: Encodable, Sendable {
         case bankedMinutes = "banked_minutes"
         case completionDays = "completion_days"
         case updatedAt = "updated_at"
+        case unspentStatPoints = "unspent_stat_points"
+        case streakFreezes = "streak_freezes"
+        case frozenDays = "frozen_days"
+        case emergencyPasses = "emergency_passes"
+        case titles
+        case activeTitle = "active_title"
+        case achievements
+        case clearDays = "clear_days"
+        case questsDone = "quests_done"
+        case autoDone = "auto_done"
+        case bossesDefeated = "bosses_defeated"
+    }
+
+    // Written by hand so the reward columns are only sent when present: the
+    // fallback in save(profile:) sends a row without them.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(userID, forKey: .userID)
+        try c.encode(name, forKey: .name)
+        try c.encode(totalXP, forKey: .totalXP)
+        try c.encode(strength, forKey: .strength)
+        try c.encode(endurance, forKey: .endurance)
+        try c.encode(intellect, forKey: .intellect)
+        try c.encode(discipline, forKey: .discipline)
+        try c.encode(recovery, forKey: .recovery)
+        try c.encode(bankedMinutes, forKey: .bankedMinutes)
+        try c.encode(completionDays, forKey: .completionDays)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        guard let rewards else { return }
+        try c.encode(rewards.unspentStatPoints, forKey: .unspentStatPoints)
+        try c.encode(rewards.streakFreezes, forKey: .streakFreezes)
+        try c.encode(rewards.frozenDays.map(Self.day), forKey: .frozenDays)
+        try c.encode(rewards.emergencyPasses, forKey: .emergencyPasses)
+        try c.encode(rewards.titles, forKey: .titles)
+        try c.encode(rewards.activeTitle, forKey: .activeTitle)
+        try c.encode(rewards.achievements, forKey: .achievements)
+        try c.encode(rewards.clearDays.map(Self.day), forKey: .clearDays)
+        try c.encode(rewards.questsDone, forKey: .questsDone)
+        try c.encode(rewards.autoDone, forKey: .autoDone)
+        try c.encode(rewards.bossesDefeated, forKey: .bossesDefeated)
     }
 }
 

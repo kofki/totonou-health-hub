@@ -17,6 +17,7 @@ struct RewardsView: View {
                 if player.unspentStatPoints > 0 { unspent(player) }
                 inventory(player)
                 if let next = NextMilestone.after(streak: player.streak()) { milestone(next, streak: player.streak()) }
+                titles(player)
                 achievements(player)
             }
         }
@@ -96,6 +97,27 @@ struct RewardsView: View {
                 Text("\(streak)/\(next.milestone.days)").font(.number(17)).foregroundStyle(Ink.mute)
             }
             MeterBar(value: Double(streak) / Double(next.milestone.days), tint: Ink.shu, segments: 0)
+        }
+    }
+
+    /// Titles you hold, each with a star; the one you wear is lit. Tap to wear it.
+    @ViewBuilder private func titles(_ player: Player) -> some View {
+        if !player.titles.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeader("Titles") { Text("\(player.titles.count)").caption(size: 15) }
+                ForEach(player.titles, id: \.self) { title in
+                    let worn = title == player.activeTitle
+                    Button { engine.wear(worn ? nil : title, player: player) } label: {
+                        HStack(spacing: 12) {
+                            GlyphIcon(worn ? .crown : .star, size: 22, tint: worn ? Ink.kin : Ink.mute)
+                            Text(title).font(.text(17, weight: worn ? .bold : .medium))
+                            Spacer()
+                            if worn { Text("Worn").caption(Ink.kin, size: 13) }
+                        }
+                    }
+                    .buttonStyle(PressStyle())
+                }
+            }
         }
     }
 

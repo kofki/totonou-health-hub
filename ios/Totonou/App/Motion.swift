@@ -132,7 +132,10 @@ struct RewardBanner: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            Text("+\(notice.xp) XP").font(.number(17, weight: .bold)).foregroundStyle(Ink.ai)
+            HStack(spacing: 5) {
+                GlyphIcon(.star, size: 16, tint: Ink.ai)
+                Text("+\(notice.xp) XP").font(.number(17, weight: .bold)).foregroundStyle(Ink.ai)
+            }
             if let stat = notice.stat {
                 HStack(spacing: 5) {
                     GlyphIcon(stat.glyph, size: 16, tint: Ink.washi)

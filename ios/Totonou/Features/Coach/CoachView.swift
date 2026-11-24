@@ -28,17 +28,21 @@ struct CoachView: View {
             }
 
             if let player = players.first {
-                let review = Coach.review(quests: quests, player: player, bosses: arcs.first?.bosses ?? [])
+                let review = Coach.review(quests: quests, player: player, bosses: arcs.first?.bosses ?? [],
+                                          readings: engine.readings)
                 if review.total == 0 {
                     SystemWindow(title: "Nothing to review yet") {
                         Text("Start an arc and finish a few quests. I read what you actually do.")
                             .font(.text(17, weight: .medium))
                     }
                 } else {
+                    // Top to bottom: what to do, the one-tap way to do it, then the evidence.
                     say(review)
-                    if advisor != nil { ask(review) }
+                    if !review.suggestions.isEmpty { next(review) }
                     numbers(review)
-                    next(review)
+                    if !review.insights.isEmpty { findings(review) }
+                    saw(review)
+                    if advisor != nil { ask(review) }
                 }
             }
         }
@@ -47,8 +51,8 @@ struct CoachView: View {
     // MARK: Sections
 
     private func say(_ review: CoachReview) -> some View {
-        SystemWindow(title: "Coach") {
-            Text(isThinking ? "Thinking…" : advice ?? review.insights.first ?? "Keep going.")
+        SystemWindow(title: "Today") {
+            Text(isThinking ? "Thinking…" : advice ?? review.insights.first?.text ?? "Finish your next quest.")
                 .font(.text(18, weight: .medium))
                 .lineSpacing(3)
         }
@@ -79,18 +83,49 @@ struct CoachView: View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader("Last 7 days")
             HStack(alignment: .top) {
-                figure("\(review.done)/\(review.total)", "Quests")
+                figure(.check, "\(review.done)/\(review.total)", "Quests", Ink.ai)
                 Spacer()
-                figure("\(review.xp)", "XP")
+                figure(.flame, "\(review.streak)", "Streak", Ink.shu)
                 Spacer()
-                figure("\(review.missed)", "Missed")
+                figure(.warning, "\(review.missed)", "Missed", review.missed > 0 ? Ink.shu : Ink.mute)
             }
-            ForEach(review.insights, id: \.self) { line in
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Circle().fill(Ink.ai).frame(width: 6, height: 6).offset(y: -3)
-                    Text(line).font(.text(17)).lineSpacing(3)
+        }
+    }
+
+    private func findings(_ review: CoachReview) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader("Findings")
+            ForEach(review.insights) { insight in
+                HStack(alignment: .top, spacing: 12) {
+                    GlyphIcon(glyph(insight.kind), size: 20, tint: Ink.ai)
+                    Text(insight.text).font(.text(17)).lineSpacing(3)
                 }
             }
+        }
+    }
+
+    /// Exactly what the coach was given, so any advice can be checked.
+    private func saw(_ review: CoachReview) -> some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(review.facts, id: \.self) { Text($0).caption(size: 14) }
+            }
+            .padding(.top, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text("What the coach saw").font(.text(16, weight: .semibold))
+        }
+        .tint(Ink.mute)
+    }
+
+    private func glyph(_ kind: CoachInsight.Kind) -> Glyph {
+        switch kind {
+        case .timing: .hourglass
+        case .missed: .warning
+        case .stats: .target
+        case .boss: .sword
+        case .health: .heart
+        case .streak: .flame
         }
     }
 
@@ -119,9 +154,12 @@ struct CoachView: View {
         }
     }
 
-    private func figure(_ value: String, _ label: String) -> some View {
+    private func figure(_ glyph: Glyph, _ value: String, _ label: String, _ tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(value).font(.number(28))
+            HStack(spacing: 6) {
+                GlyphIcon(glyph, size: 18, tint: tint)
+                Text(value).font(.number(28))
+            }
             Text(label).caption()
         }
     }
@@ -137,7 +175,7 @@ struct CoachView: View {
     private func think(_ review: CoachReview, question: String?) async {
         guard let advisor else { return }
         isThinking = true
-        let answer = try? await advisor.advise(facts: review.facts, question: question)
+        let answer = try? await advisor.advise(facts: review.factSheet, question: question)
         withAnimation(.snappy) {
             if let answer { advice = answer }
             isThinking = false

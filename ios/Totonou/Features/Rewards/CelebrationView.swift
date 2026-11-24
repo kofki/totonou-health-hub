@@ -147,15 +147,17 @@ private struct DayClearScreen: View {
             SystemWindow(title: "Day clear") {
                 Text("\(event.done) / \(event.done)").font(.number(56, weight: .heavy))
                 SystemLine("Every quest is done")
-                Text("Clear bonus: +\(Rewards.dailyClearXP) XP · +\(Rewards.dailyClearMinutes) min")
-                    .font(.text(16, weight: .medium))
+                HStack(spacing: 12) {
+                    Text("Clear bonus").font(.text(16, weight: .medium))
+                    RewardChip(glyph: .star, text: "+\(Rewards.dailyClearXP) XP")
+                    RewardChip(glyph: .hourglass, text: "+\(Rewards.dailyClearMinutes) min")
+                }
             }
             SystemPanel {
-                line("Screen time earned", "+\(event.minutes) min", Ink.ai)
-                line("Streak", "\(event.streak) days", Ink.shu)
+                line(.hourglass, "Screen time earned", "+\(event.minutes) min", Ink.ai)
+                line(.flame, "Streak", "\(event.streak) days", Ink.shu)
                 if !event.statLines.isEmpty {
-                    Text("Stats moved").caption(size: 14)
-                    Text(event.statLines).font(.text(17, weight: .semibold))
+                    line(.rankUp, "Stats moved", event.statLines, Ink.jade)
                 }
             }
             if let tomorrow = event.tomorrow {
@@ -181,8 +183,9 @@ private struct DayClearScreen: View {
         }
     }
 
-    private func line(_ label: String, _ value: String, _ tint: Color) -> some View {
-        HStack {
+    private func line(_ glyph: Glyph, _ label: String, _ value: String, _ tint: Color) -> some View {
+        HStack(spacing: 10) {
+            GlyphIcon(glyph, size: 20, tint: tint)
             Text(label).caption(size: 16)
             Spacer()
             Text(value).font(.number(19, weight: .bold)).foregroundStyle(tint)

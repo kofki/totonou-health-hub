@@ -65,12 +65,16 @@ struct OnDeviceArcPlanner: ArcPlanner {
 struct OnDeviceCoachAdvisor: CoachAdvisor {
     func advise(facts: String, question: String?) async throws -> String {
         let session = LanguageModelSession(instructions: """
-            You are a direct, kind coach inside a habit app. You are given facts about the user's \
-            week. Answer in two or three short sentences. Use the numbers you are given and do not \
-            invent others. End with one specific thing to do today. No emojis, no lists.
+            You are a blunt coach in a habit app. Reply in one or two sentences, under 30 words. \
+            No greeting, no praise, no preamble. Start with the one thing to do today, then the \
+            reason. Use only the facts you are given: never invent numbers, events, foods, \
+            injuries or plans. If the facts cannot answer the question, say which data is missing. \
+            No emojis, no lists.
             """)
-        let ask = question.map { "The user asks: \($0)" } ?? "Give them today's advice."
-        return try await session.respond(to: "Facts:\n\(facts)\n\n\(ask)").content
+        let ask = question.map { "The user asks: \($0)" } ?? "What should they do today?"
+        // A hard cap as well as the instruction: the model cannot ramble past ~60 tokens.
+        return try await session.respond(to: "Facts (the only things you know):\n\(facts)\n\n\(ask)",
+                                         options: GenerationOptions(maximumResponseTokens: 60)).content
     }
 }
 #endif

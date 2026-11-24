@@ -15,6 +15,24 @@ struct ProfileRecord: Sendable, Equatable {
     var recovery: Int
     var bankedMinutes: Int
     var completionDays: [Date]
+    /// Reward progress. Optional with a default, so code that builds a record
+    /// without it (Exercise 10) still compiles.
+    var rewards: ProfileRewards? = nil
+}
+
+/// The reward fields of a profile (supabase/migrations/20261124120000_rewards.sql).
+struct ProfileRewards: Sendable, Equatable {
+    var unspentStatPoints: Int
+    var streakFreezes: Int
+    var frozenDays: [Date]
+    var emergencyPasses: Int
+    var titles: [String]
+    var activeTitle: String?
+    var achievements: [String]
+    var clearDays: [Date]
+    var questsDone: Int
+    var autoDone: Int
+    var bossesDefeated: Int
 }
 
 /// One quest, in a shape that can cross the network.
@@ -65,7 +83,11 @@ extension Player {
     var record: ProfileRecord {
         ProfileRecord(name: name, totalXP: totalXP, strength: strength, endurance: endurance,
                       intellect: intellect, discipline: discipline, recovery: recovery,
-                      bankedMinutes: bankedMinutes, completionDays: completionDays)
+                      bankedMinutes: bankedMinutes, completionDays: completionDays,
+                      rewards: ProfileRewards(unspentStatPoints: unspentStatPoints, streakFreezes: streakFreezes,
+                                              frozenDays: frozenDays, emergencyPasses: emergencyPasses, titles: titles,
+                                              activeTitle: activeTitle, achievements: achievementsRaw, clearDays: clearDays,
+                                              questsDone: questsDone, autoDone: autoDone, bossesDefeated: bossesDefeated))
     }
 
     func apply(_ record: ProfileRecord) {
@@ -78,6 +100,19 @@ extension Player {
         recovery = record.recovery
         bankedMinutes = record.bankedMinutes
         completionDays = record.completionDays
+        if let rewards = record.rewards {
+            unspentStatPoints = rewards.unspentStatPoints
+            streakFreezes = rewards.streakFreezes
+            frozenDays = rewards.frozenDays
+            emergencyPasses = rewards.emergencyPasses
+            titles = rewards.titles
+            activeTitle = rewards.activeTitle
+            achievementsRaw = rewards.achievements
+            clearDays = rewards.clearDays
+            questsDone = rewards.questsDone
+            autoDone = rewards.autoDone
+            bossesDefeated = rewards.bossesDefeated
+        }
     }
 }
 

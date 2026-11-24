@@ -5,13 +5,13 @@ import TotonouCore
 // EXERCISE 13 · Achievement badge                      (SwiftUI views, state)
 //
 // The Rewards screen shows a grid of these, one per achievement. Right now each
-// badge is just its name, so you cannot tell earned from locked at a glance.
+// badge shows its icon and name, but every badge looks the same: you cannot
+// tell earned from locked, or common from legendary, at a glance.
 //
 // Build it
 //   1. A rounded tile, about 80 points wide, on Ink.raised.
-//   2. Earned: the achievement's glyph (`achievement.glyph`, see RewardViews.swift)
-//      in its rarity colour (`achievement.rarity.tint`), a border in the same
-//      colour, and the title under it.
+//   2. Earned: the icon in its rarity colour (`achievement.rarity.tint`), a
+//      border in the same colour, and the title under it.
 //   3. Locked: a `.lock` glyph in Ink.mute, the title muted, the tile at
 //      about 45% opacity. Do not show the glyph, so it stays a surprise.
 //   4. Tapping a tile shows `achievement.detail` (try .popover, or a small
@@ -29,9 +29,13 @@ struct AchievementBadge: View {
 
     var body: some View {
         // TODO(you): replace this with the tile described above.
-        Text(achievement.title)
-            .font(.text(12, weight: .semibold))
-            .frame(width: 80, height: 80)
+        VStack(spacing: 6) {
+            GlyphIcon(achievement.glyph, size: 26, tint: Ink.washi)
+            Text(achievement.title)
+                .font(.text(12, weight: .semibold))
+                .multilineTextAlignment(.center)
+        }
+        .frame(width: 80, height: 80)
     }
 }
 

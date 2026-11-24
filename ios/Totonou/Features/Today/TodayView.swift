@@ -125,7 +125,12 @@ struct TodayView: View {
             Text(quest.title.uppercased()).font(.hud(28))
             HStack(spacing: 8) {
                 RankBadge(rank: quest.rank, size: 30)
-                Text("\(quest.scheduledAt.clock) · \(reward(quest))").font(.text(15, weight: .medium))
+                Text(quest.scheduledAt.clock).font(.number(15, weight: .bold))
+                if quest.isRecovery {
+                    Text("Clears the penalty").font(.text(15, weight: .medium))
+                } else {
+                    QuestRewards(quest: quest, player: player)
+                }
             }
             GoalProgress(quest: quest)
             if quest.isCritical { SystemLine("Must do today", tint: Ink.shu, size: 15) }

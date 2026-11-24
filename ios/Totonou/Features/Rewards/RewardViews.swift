@@ -94,6 +94,37 @@ extension Achievement {
     }
 }
 
+/// A reward in a line of text: its icon, then the amount. "★ +35 XP"
+struct RewardChip: View {
+    let glyph: Glyph
+    let text: String
+    var tint: Color = .white
+    var size: CGFloat = 15
+
+    var body: some View {
+        HStack(spacing: 4) {
+            GlyphIcon(glyph, size: size + 1, tint: tint)
+            Text(text).font(.number(size, weight: .bold)).foregroundStyle(tint)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// What a quest pays, as chips: XP (with the mastery bonus), minutes, stat points.
+struct QuestRewards: View {
+    let quest: Quest
+    let player: Player
+    var tint: Color = .white
+
+    var body: some View {
+        HStack(spacing: 12) {
+            RewardChip(glyph: .star, text: "+\(Rewards.questXP(rank: quest.rank, statValue: player.value(for: quest.stat))) XP", tint: tint)
+            RewardChip(glyph: .hourglass, text: "+\(quest.rank.earnedMinutes) min", tint: tint)
+            RewardChip(glyph: quest.stat.glyph, text: "+\(quest.rank.statPoints)", tint: tint)
+        }
+    }
+}
+
 /// One reward: an icon, what you got, and a short line under it.
 struct RewardCard: View {
     let glyph: Glyph
