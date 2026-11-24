@@ -22,6 +22,10 @@ public enum Ink {
     public static let shu = Color(hex: 0xFF6B57)
     /// Reserved for the top ranks.
     public static let kin = Color(hex: 0xF2C66D)
+    /// Rank D and rare things. Added 2026-11-24 so every difficulty has its own colour.
+    public static let jade = Color(hex: 0x4FD69C)
+    /// Rank B and epic things.
+    public static let violet = Color(hex: 0xA98BFF)
 }
 
 /// The app's background: a blue gradient with a soft glow at the top.
@@ -59,6 +63,12 @@ public extension Font {
     static func number(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight, design: .rounded)
     }
+
+    /// The "system" voice: narrow, heavy capitals, like a game HUD. Only for
+    /// system windows and notifications; everything else stays `text`.
+    static func hud(_ size: CGFloat, weight: Font.Weight = .heavy) -> Font {
+        .system(size: size, weight: weight).width(.condensed)
+    }
 }
 
 public extension View {
@@ -70,12 +80,26 @@ public extension View {
 }
 
 public extension Rank {
+    /// Each difficulty has its own colour, from grey (trivial) to red (brutal).
     var tint: Color {
         switch self {
-        case .e, .d: Ink.mute
-        case .c, .b: Ink.ai
+        case .e: Ink.mute
+        case .d: Ink.jade
+        case .c: Ink.ai
+        case .b: Ink.violet
         case .a: Ink.kin
         case .s: Ink.shu
+        }
+    }
+}
+
+public extension Rarity {
+    var tint: Color {
+        switch self {
+        case .common: Ink.mute
+        case .rare: Ink.ai
+        case .epic: Ink.violet
+        case .legendary: Ink.kin
         }
     }
 }

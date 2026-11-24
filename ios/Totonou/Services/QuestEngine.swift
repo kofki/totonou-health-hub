@@ -47,6 +47,7 @@ struct Celebration: Identifiable, Equatable {
         case achievement(Achievement)
         case dayClear(DayClearEvent)
         case freezeUsed(days: Int, streak: Int)
+        case skill(Skill, level: Int)
     }
 
     let id = UUID()
@@ -66,10 +67,38 @@ final class QuestEngine {
         if !celebrations.isEmpty { celebrations.removeFirst() }
     }
 
+    #if DEBUG
+    /// Debug builds only, with the launch argument -previewCelebrations: queue one
+    /// of every celebration so their screens can be checked. Nothing is saved:
+    /// these are screens, not progress.
+    func previewCelebrations() {
+        celebrations = [
+            .init(kind: .levelUp(LevelUpEvent(from: 19, to: 20, rewards: Rewards.rewards(from: 19, to: 20),
+                                              evidence: ["6 quests cleared", "2 finished from real data", "Strength +4 · Endurance +2"]))),
+            .init(kind: .skill(.ironBody, level: 1)),
+            .init(kind: .achievement(.streak7)),
+            .init(kind: .milestone(StreakMilestones.all[1])),
+            .init(kind: .freezeUsed(days: 1, streak: 8)),
+            .init(kind: .dayClear(DayClearEvent(done: 4, minutes: 65, statLines: "Strength +4 · Intellect +3",
+                                                streak: 8, tomorrow: QuestIdea(title: "Run 5 km easy", stat: .endurance, hour: 7)))),
+        ]
+    }
+    #endif
+
     /// Set whenever something pays out. The root view clears it after a moment.
     var notice: RewardNotice?
     var isSyncing = false
     var lastSync: Date?
+    /// Today's Health readings from the last sync, for quest progress bars.
+    private(set) var readings: [SignalKey: Double] = [:]
+
+    /// One must-do quest per day: missing it sends you to the penalty zone.
+    /// Turning one on turns the others for today off.
+    func setMustDo(_ on: Bool, quest: Quest, todays: [Quest]) {
+        guard quest.isOpen, !quest.isRecovery else { return }
+        if on { for other in todays where other !== quest && other.isOpen { other.isCritical = false } }
+        quest.isCritical = on
+    }
 
     /// Where the cloud backup stands. Shown on the Status screen.
     var cloudState: CloudState
@@ -372,6 +401,20 @@ final class QuestEngine {
             if !player.titles.contains(achievement.title) { player.titles.append(achievement.title) }
             celebrations.append(Celebration(kind: .achievement(achievement)))
         }
+        checkSkills(player, now: now)
+    }
+
+    /// A skill unlocking or reaching a new level gets its own moment.
+    private func checkSkills(_ player: Player, now: Date) {
+        let facts = player.skillFacts(on: now)
+        for skill in Skill.allCases {
+            let level = skill.level(facts)
+            let key = "\(skill.rawValue):\(level)"
+            guard level > 0, !player.skillLevelsRaw.contains(key) else { continue }
+            player.skillLevelsRaw.removeAll { $0.hasPrefix("\(skill.rawValue):") }
+            player.skillLevelsRaw.append(key)
+            celebrations.append(Celebration(kind: .skill(skill, level: level)))
+        }
     }
 
     /// When the last quest of the day is done: pay the clear bonus and queue the recap.
@@ -402,6 +445,7 @@ final class QuestEngine {
         guard player.unspentStatPoints > 0 else { return }
         player.unspentStatPoints -= 1
         player.add(1, to: stat)
+        checkSkills(player, now: .now)
     }
 
     func wear(_ title: String?, player: Player) {
@@ -426,6 +470,7 @@ final class QuestEngine {
         isSyncing = true
         defer { isSyncing = false }
         guard let readings = try? await signals.latest() else { return }
+        self.readings = readings
         for quest in quests where quest.isOpen {
             guard let raw = quest.signalKey, let key = SignalKey(rawValue: raw),
                   let target = quest.target, let value = readings[key] else { continue }

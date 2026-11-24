@@ -87,6 +87,28 @@ private func day(_ offset: Int) -> Date {
     }
 }
 
+@Suite struct SkillTests {
+    @Test func lockedUntilTheFirstThreshold() {
+        #expect(Skill.ironBody.level(SkillFacts(strength: 4)) == 0)
+        #expect(Skill.ironBody.level(SkillFacts(strength: 5)) == 1)
+        #expect(Skill.ironBody.level(SkillFacts(strength: 34)) == 4)
+    }
+
+    @Test func capsAtTen() {
+        #expect(Skill.giantSlayer.level(SkillFacts(bossesDefeated: 500)) == 10)
+        #expect(Skill.giantSlayer.progress(SkillFacts(bossesDefeated: 500)) == 1)
+    }
+
+    @Test func progressWithinALevel() {
+        // Eternal Flame Lv. 1 at 3 days, Lv. 2 at 7: 5 days is halfway.
+        #expect(Skill.eternalFlame.progress(SkillFacts(streak: 5)) == 0.5)
+    }
+
+    @Test func everySkillHasTenLevels() {
+        for skill in Skill.allCases { #expect(skill.thresholds.count == 10) }
+    }
+}
+
 @Suite struct AchievementTests {
     @Test func nothingDoneEarnsNothing() {
         #expect(AchievementFacts().earned.isEmpty)

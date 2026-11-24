@@ -10,8 +10,11 @@ struct TodayView: View {
     @Query(sort: \Arc.startDate, order: .reverse) private var arcs: [Arc]
     @State private var showShield = false
     @State private var showComposer = false
+    @State private var showConnect = false
     /// The quest whose info window is open.
     @State private var selected: Quest?
+    /// Today's calendar events, read when the screen appears and on refresh.
+    @State private var events: [CalendarEventInfo] = []
 
     private var quests: [Quest] {
         allQuests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
@@ -42,6 +45,7 @@ struct TodayView: View {
                     }
                     bank(player)
                     if !later.isEmpty { laterList }
+                    dayList
                     if !finished.isEmpty {
                         DoneSection(quests: finished) { quest in
                             QuestRow(quest: quest, open: { select(quest) }, complete: { complete(quest, player) })
@@ -52,13 +56,19 @@ struct TodayView: View {
         }
         // Pull down to check Apple Health for quests that finished themselves.
         .refreshable {
-            if let player = players.first { await engine.sync(quests: quests, player: player) }
+            if let player = players.first {
+                await engine.importReminders(context: context, player: player)
+                await engine.sync(quests: quests, player: player)
+            }
+            events = engine.day.events(on: .now)
         }
+        .task { events = engine.day.events(on: .now) }
         .overlay { questWindow }
         .fullScreenCover(isPresented: $showShield) {
             ShieldView(quest: next, locked: locked)
         }
         .sheet(isPresented: $showComposer) { ArcComposer() }
+        .sheet(isPresented: $showConnect, onDismiss: { events = engine.day.events(on: .now) }) { ConnectView() }
         .task(id: quests.count) {
             engine.enforcePenalties(quests: quests, context: context)
         }
@@ -73,7 +83,7 @@ struct TodayView: View {
             HunterFigure(rank: Rank.forLevel(progress.level))
                 .frame(width: 96, height: 96)
             VStack(alignment: .leading, spacing: 8) {
-                Text("\(Date.now.greeting)、\(player.name)").caption(Ink.ai, size: 15)
+                Text("\(Date.now.greeting), \(player.name)").caption(Ink.ai, size: 15)
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Text("Level").font(.text(30, weight: .bold))
                     RollingNumber(value: progress.level).font(.number(30, weight: .bold))
@@ -83,7 +93,7 @@ struct TodayView: View {
             }
             VStack(spacing: 4) {
                 GlyphIcon(.flame, size: 24, tint: Ink.shu)
-                RollingNumber(value: StreakCalculator.currentStreak(completionDays: player.completionDays, today: .now))
+                RollingNumber(value: player.streak())
                     .font(.number(22))
             }
             .accessibilityElement(children: .combine)
@@ -103,15 +113,22 @@ struct TodayView: View {
     }
 
     private var penalty: some View {
-        SystemWindow(title: "Penalty", tint: Ink.shu) {
-            Text("Finish the recovery quest to unlock everything.").font(.text(17, weight: .medium))
+        SystemWindow(title: "Penalty", tint: Ink.shu, notice: true, leading: true) {
+            (Text("A must-do quest was missed. You are in the ") + Text("penalty zone").foregroundStyle(Ink.shu)
+                + Text(". Everything stays locked until the recovery quest is done."))
+                .font(.text(17, weight: .medium))
         }
     }
 
     private func nextQuest(_ quest: Quest, player: Player) -> some View {
-        SystemWindow(title: quest.isRecovery ? "Recovery quest" : "Quest", tint: quest.isRecovery ? Ink.shu : Ink.ai) {
-            Text(quest.title).font(.text(24, weight: .bold))
-            Text("\(quest.scheduledAt.clock) · \(reward(quest))").caption(.white.opacity(0.85), size: 16)
+        SystemWindow(title: quest.isRecovery ? "Recovery quest" : "Next quest", tint: quest.isRecovery ? Ink.shu : Ink.ai) {
+            Text(quest.title.uppercased()).font(.hud(28))
+            HStack(spacing: 8) {
+                RankBadge(rank: quest.rank, size: 30)
+                Text("\(quest.scheduledAt.clock) · \(reward(quest))").font(.text(15, weight: .medium))
+            }
+            GoalProgress(quest: quest)
+            if quest.isCritical { SystemLine("Must do today", tint: Ink.shu, size: 15) }
             if quest.source == .manual {
                 Button("Complete") { complete(quest, player) }
                     .buttonStyle(SystemButtonStyle(tint: .white, filled: true))
@@ -164,33 +181,49 @@ struct TodayView: View {
         }
     }
 
+    /// Your calendar for today, with quests already on it hidden.
+    @ViewBuilder private var dayList: some View {
+        if !engine.day.hasCalendarAccess {
+            Button { showConnect = true } label: {
+                SystemPanel(glow: true) {
+                    HStack(spacing: 12) {
+                        GlyphIcon(.calendar, size: 24, tint: Ink.ai)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Connect your life").font(.text(18, weight: .semibold))
+                            Text("Calendar, Health, Reminders, Alarms").caption(size: 14)
+                        }
+                        Spacer()
+                        GlyphIcon(.chevron, size: 14)
+                    }
+                }
+            }
+            .buttonStyle(PressStyle())
+        } else {
+            let questIDs = Set(quests.compactMap(\.externalID))
+            let shown = events.filter { !questIDs.contains($0.id) }
+            if !shown.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 10) {
+                        Text("Your day").font(.text(22, weight: .bold))
+                        Text("\(shown.count)").font(.number(17)).foregroundStyle(Ink.mute)
+                    }
+                    ForEach(shown) { event in
+                        EventRow(event: event) {
+                            withAnimation(.snappy) { engine.addQuest(from: event, context: context) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// The quest's details in a system window, over a dimmed screen.
     @ViewBuilder private var questWindow: some View {
-        if let quest = selected {
-            ZStack {
-                Ink.deep.opacity(0.75).ignoresSafeArea()
-                    .onTapGesture { withAnimation(.snappy) { selected = nil } }
-                SystemWindow(title: "Quest info", tint: quest.isRecovery ? Ink.shu : Ink.ai) {
-                    Text(quest.title).font(.text(24, weight: .bold))
-                    VStack(spacing: 6) {
-                        Text("Rank \(quest.rank.rawValue) · \(quest.stat.title)")
-                        Text("Due \(quest.scheduledAt.clock)")
-                        Text("Reward: \(reward(quest))")
-                    }
-                    .font(.text(17, weight: .medium))
-                    if quest.isOpen, let player = players.first {
-                        Button("Complete") {
-                            complete(quest, player)
-                            selected = nil
-                        }
-                        .buttonStyle(SystemButtonStyle(tint: .white, filled: true))
-                    }
-                    Button("Close") { withAnimation(.snappy) { selected = nil } }
-                        .buttonStyle(SystemButtonStyle(tint: .white))
-                }
-                .padding(24)
-                .transition(.scale(scale: 0.9).combined(with: .opacity))
+        if let quest = selected, let player = players.first {
+            QuestInfoWindow(quest: quest, player: player, todays: quests) {
+                withAnimation(.snappy) { selected = nil }
             }
+            .transition(.scale(scale: 0.92).combined(with: .opacity))
         }
     }
 
@@ -206,6 +239,35 @@ struct TodayView: View {
 
     private func complete(_ quest: Quest, _ player: Player) {
         withAnimation(.snappy) { engine.complete(quest, player: player) }
+    }
+}
+
+/// A calendar event on Today. Events are context, not quests: they are muted,
+/// and the + turns one into a quest.
+struct EventRow: View {
+    let event: CalendarEventInfo
+    let makeQuest: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(event.isAllDay ? "All day" : event.start.clock)
+                .font(.number(15)).foregroundStyle(Ink.mute)
+                .frame(width: 52, alignment: .leading)
+            Rectangle().fill(BusyFilter.isBusy(event) ? Ink.washi.opacity(0.4) : Ink.faint).frame(width: 3, height: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.title).font(.text(17, weight: .medium)).foregroundStyle(Ink.mute)
+                Text(event.calendarName).caption(size: 13)
+            }
+            Spacer(minLength: 8)
+            Button(action: makeQuest) {
+                GlyphIcon(.plus, size: 16, tint: Ink.ai)
+                    .frame(width: 36, height: 36)
+                    .background(Ink.ai.opacity(0.1), in: Circle())
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("Make \(event.title) a quest")
+        }
+        .padding(.vertical, 6)
     }
 }
 
@@ -228,7 +290,8 @@ struct QuestRow: View {
                             .multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             Text(quest.scheduledAt.clock)
-                            if quest.isCritical { Text("Critical").foregroundStyle(Ink.shu) }
+                            if quest.isCritical { Text("Must do").foregroundStyle(Ink.shu) }
+                            if quest.alarmID != nil { GlyphIcon(.alarm, size: 13, tint: Ink.ai) }
                             if quest.isFailed { Text("Missed").foregroundStyle(Ink.shu) }
                         }
                         .caption()

@@ -9,6 +9,7 @@ struct StatusView: View {
     @Query(sort: \Quest.scheduledAt) private var quests: [Quest]
     @Query(sort: \Arc.startDate, order: .reverse) private var arcs: [Arc]
     @State private var showHistory = false
+    @State private var showConnect = false
     @State private var isRenaming = false
     @State private var newName = ""
     @AppStorage("soundsOn") private var soundsOn = true
@@ -17,9 +18,21 @@ struct StatusView: View {
         Screen {
             if let player = players.first {
                 character(player)
+                StatusWindow(player: player, arc: arcs.first) {
+                    newName = player.name
+                    isRenaming = true
+                }
+                CharacterProfile(player: player, quests: quests)
+                skills(player)
                 week(player)
                 stats(player)
-                WordOfDayCard(word: WordBook.word(for: .now))
+                Button { showConnect = true } label: {
+                    HStack(spacing: 8) {
+                        GlyphIcon(.sync, size: 18)
+                        Text("Connections")
+                    }
+                }
+                .buttonStyle(SystemButtonStyle(tint: Ink.ai))
                 Button { showHistory = true } label: {
                     HStack(spacing: 8) {
                         GlyphIcon(.scroll, size: 18)
@@ -31,6 +44,7 @@ struct StatusView: View {
             }
         }
         .sheet(isPresented: $showHistory) { QuestHistoryView() }
+        .sheet(isPresented: $showConnect) { ConnectView() }
         .alert("Your name", isPresented: $isRenaming) {
             TextField("Name", text: $newName)
             Button("Save") {
@@ -111,23 +125,27 @@ struct StatusView: View {
                 EnsoRing(progress: progress.fraction)
                 HunterFigure(rank: rank).padding(26)
             }
-            .frame(width: 220, height: 220)
-
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("Level").font(.text(36, weight: .bold))
-                RollingNumber(value: progress.level).font(.number(36, weight: .bold))
-            }
-            Button {
-                newName = player.name
-                isRenaming = true
-            } label: {
-                Text("\(player.name) · \(rank.rawValue)-Rank · \(progress.into) / \(progress.needed) XP")
-                    .caption(size: 15)
-            }
-            .buttonStyle(.plain)
+            .frame(width: 200, height: 200)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
+    }
+
+    /// Every unique skill: unlocked ones with their level, locked ones hidden.
+    private func skills(_ player: Player) -> some View {
+        let facts = player.skillFacts()
+        let unlocked = Skill.allCases.filter { $0.level(facts) > 0 }.count
+        return VStack(alignment: .leading, spacing: 14) {
+            SectionHeader("Skills") {
+                Text("\(unlocked) of \(Skill.allCases.count)").caption(size: 15)
+            }
+            // Unlocked first, then by how close the rest are.
+            ForEach(Skill.allCases.sorted {
+                ($0.level(facts), $0.progress(facts)) > ($1.level(facts), $1.progress(facts))
+            }, id: \.self) { skill in
+                SkillRow(skill: skill, facts: facts)
+            }
+        }
     }
 
     private func stats(_ player: Player) -> some View {
@@ -138,14 +156,6 @@ struct StatusView: View {
             StatRadar(values: values.map { Double($0) / ceiling })
                 .frame(maxWidth: 260)
                 .frame(maxWidth: .infinity)
-            ForEach(Stat.allCases) { stat in
-                HStack(spacing: 12) {
-                    GlyphIcon(stat.glyph, size: 20, tint: Ink.ai)
-                    Text(stat.title).font(.text(17)).frame(width: 96, alignment: .leading)
-                    ProgressLine(value: Double(player.value(for: stat)) / ceiling)
-                    RollingNumber(value: player.value(for: stat)).font(.number(18)).frame(width: 36, alignment: .trailing)
-                }
-            }
         }
     }
 }

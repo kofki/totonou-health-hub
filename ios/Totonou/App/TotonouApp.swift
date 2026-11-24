@@ -32,12 +32,13 @@ struct TotonouApp: App {
 }
 
 enum AppTab: CaseIterable {
-    case today, arcs, status, coach
+    case today, arcs, rewards, status, coach
 
     var glyph: Glyph {
         switch self {
         case .today: .torii
         case .arcs: .mountain
+        case .rewards: .chest
         case .status: .person
         case .coach: .book
         }
@@ -47,6 +48,7 @@ enum AppTab: CaseIterable {
         switch self {
         case .today: "Today"
         case .arcs: "Arcs"
+        case .rewards: "Rewards"
         case .status: "Status"
         case .coach: "Coach"
         }
@@ -61,6 +63,7 @@ struct RootView: View {
     @Query private var players: [Player]
     @Query(sort: \Quest.scheduledAt) private var quests: [Quest]
     @State private var tab: AppTab = .today
+    @State private var showSpend = false
     /// Lets the tab bar's dot slide from one tab to the next (matchedGeometryEffect).
     @Namespace private var tabBarSpace
 
@@ -72,6 +75,7 @@ struct RootView: View {
                 switch tab {
                 case .today: TodayView()
                 case .arcs: ArcsView()
+                case .rewards: RewardsView()
                 case .status: StatusView()
                 case .coach: CoachView()
                 }
@@ -89,12 +93,18 @@ struct RootView: View {
             }
             .allowsHitTesting(false)
 
-            if let celebration = engine.celebration, case .levelUp(let event) = celebration.kind {
-                LevelUpOverlay(level: event.to) { engine.dismissCelebration() }
+            if let celebration = engine.celebration {
+                CelebrationView(celebration: celebration, spend: { showSpend = true }) {
+                    withAnimation(.easeOut(duration: 0.25)) { engine.dismissCelebration() }
+                }
+                // A new id per celebration, so each one plays its entrance from the start.
+                .id(celebration.id)
+                .transition(.opacity)
             }
         }
         .foregroundStyle(Ink.washi)
         .animation(.spring(duration: 0.45, bounce: 0.2), value: engine.notice)
+        .sheet(isPresented: $showSpend) { StatSpendView() }
         // Runs again whenever progress changes, so the cloud copy follows along.
         .task(id: backupKey) {
             guard let player = players.first else { return }
@@ -103,13 +113,12 @@ struct RootView: View {
             await engine.refreshReminders(quests: today, plan: arcs.first?.plan ?? [])
             await engine.backUp(player: player, quests: today)
         }
-        // Until each celebration has its own screen, skip the kinds the overlay cannot show.
-        .onChange(of: engine.celebration) { _, celebration in
-            if let celebration, case .levelUp = celebration.kind {} else if celebration != nil { engine.dismissCelebration() }
-        }
         .task {
             Bootstrap.start(context)
             await arrive()
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-previewCelebrations") { engine.previewCelebrations() }
+            #endif
         }
         // Coming back to the app on a new day creates that day's quests.
         .onChange(of: scenePhase) { _, phase in

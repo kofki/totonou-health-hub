@@ -36,6 +36,11 @@ public enum Rank: String, CaseIterable, Codable, Sendable, Comparable {
     /// Minutes of social-app time a quest of this rank unlocks.
     public var earnedMinutes: Int { [5, 10, 15, 20, 30, 45][order] }
 
+    /// The difficulty in a word, shown next to the rank letter.
+    public var difficulty: String {
+        ["Trivial", "Easy", "Normal", "Hard", "Elite", "Brutal"][order]
+    }
+
     /// Hunter rank for a character level: a new rank every 10 levels.
     public static func forLevel(_ level: Int) -> Rank {
         let index = min(max(level, 1) / 10, Rank.allCases.count - 1)

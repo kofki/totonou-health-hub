@@ -59,14 +59,19 @@ xcodebuild -project ios/Totonou.xcodeproj -scheme Totonou \
 ## Conventions
 
 - Design tokens live in `TotonouCore/Theme.swift` (`Ink`, `Backdrop`, `Font.text`,
-  `Font.number`, `.caption()`). No new colours. Deep blue, not black.
+  `Font.number`, `Font.hud`, `.caption()`). Deep blue, not black. Every difficulty
+  rank has its own colour (E grey, D jade, C blue, B violet, A gold, S red); add
+  no other colours.
 - Game messages (next quest, quest info, penalty, coach, plans) go in a
   `SystemWindow`; everything else in a plain `SystemPanel` card.
 - Keep the UI simple (owner's request, 2026-11-24): large sans-serif text, short
-  English labels, few captions. No kanji in the interface; Japanese only as
-  occasional kana touches (greeting, クリア stamp).
+  English labels, few captions. No Japanese text in the interface (owner,
+  2026-11-24); Japanese-style drawings (kitsune, omamori, torii…) are welcome.
+- The system voice: `SystemWindow` titles in condensed capitals in [brackets];
+  body text stays in `Font.text`, sentence case, so it is easy to read.
 - Icons are `Glyph` cases drawn in `App/Glyphs.swift`, not SF Symbols or images.
-  Characters live in `App/Characters.swift`, animation helpers in `App/Motion.swift`.
+  Characters live in `App/Characters.swift` and `App/Spirits.swift`, animation
+  helpers in `App/Motion.swift`.
   New motion must respect Reduce Motion.
 - Views never mutate XP, stats or the screen-time bank; they call `QuestEngine`.
 - Enums are stored in SwiftData as raw strings with a typed accessor.

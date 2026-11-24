@@ -106,13 +106,13 @@ struct EnsoRing: View {
     }
 }
 
-/// The red stamp on finished work. クリア is "clear", as in clearing a stage.
+/// The red stamp on finished work, as in clearing a stage.
 struct ClearStamp: View {
-    var text = "クリア"
+    var text = "CLEAR"
 
     var body: some View {
         Text(text)
-            .font(.text(13, weight: .heavy))
+            .font(.hud(14))
             .foregroundStyle(Ink.shu)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
@@ -243,12 +243,11 @@ extension Date {
         formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(Locale(identifier: "en_GB")))
     }
 
-    /// One of the few Japanese touches, kept in hiragana so it reads as Japanese.
     var greeting: String {
         switch Calendar.current.component(.hour, from: self) {
-        case 5..<11: "おはよう"
-        case 11..<18: "こんにちは"
-        default: "こんばんは"
+        case 5..<11: "Good morning"
+        case 11..<18: "Good afternoon"
+        default: "Good evening"
         }
     }
 }
@@ -272,38 +271,92 @@ struct WindowShape: Shape {
     }
 }
 
-/// The glowing blue "system message" window. Quests, rewards and warnings
-/// arrive in one of these; everything else on a screen stays quiet.
+/// The "system message" window, the game's own voice. Quests, rewards and
+/// warnings arrive in one of these; everything else on a screen stays quiet.
+///
+/// Two looks, both common in "system" stories: bright translucent glass for
+/// information and rewards, and a dark `notice` panel with a boxed "!" header
+/// for warnings and penalties.
 struct SystemWindow<Content: View>: View {
     var title: String?
     var tint: Color = Ink.ai
+    /// The dark notification look.
+    var notice = false
+    /// Left-aligned text, for long windows such as the character profile.
+    var leading = false
     @ViewBuilder var content: Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(spacing: 14) {
-            if let title {
-                Text(title.uppercased()).font(.text(15, weight: .heavy)).tracking(2)
-            }
+        VStack(alignment: leading ? .leading : .center, spacing: 14) {
+            if let title { header(title) }
             content
         }
-        .multilineTextAlignment(.center)
+        .multilineTextAlignment(leading ? .leading : .center)
         .foregroundStyle(.white)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: leading ? .leading : .center)
         .padding(.horizontal, 22)
-        .padding(.vertical, 24)
-        .background(WindowShape().fill(
-            LinearGradient(colors: [tint.opacity(0.62), tint.opacity(0.30)], startPoint: .top, endPoint: .bottom)
-        ))
-        .background(WindowShape().fill(Ink.deep.opacity(0.7)))
-        .overlay(WindowShape(cut: 10).stroke(.white.opacity(0.3), lineWidth: 1).padding(6))
-        .overlay(WindowShape().stroke(.white.opacity(0.85), lineWidth: 1.5))
+        .padding(.top, 22)
+        .padding(.bottom, 24)
+        .background(panel)
+        .overlay(frame)
         .overlay(alignment: .topTrailing) { controls.padding(12) }
+        .overlay { PixelBits(tint: notice ? tint : .white) }
         .phaseAnimator(reduceMotion ? [0.5] : [0.0, 1.0]) { window, phase in
             window.shadow(color: tint.opacity(0.45 + phase * 0.3), radius: 16 + phase * 10)
         } animation: { _ in
             .easeInOut(duration: 2.4)
+        }
+    }
+
+    @ViewBuilder private func header(_ title: String) -> some View {
+        if notice {
+            HStack(spacing: 10) {
+                GlyphIcon(.notice, size: 24, tint: tint)
+                Text(title.uppercased())
+                    .font(.hud(18)).tracking(2)
+                    .padding(.horizontal, 12).padding(.vertical, 5)
+                    .overlay(Rectangle().strokeBorder(tint.opacity(0.7), lineWidth: 1))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            // A title that brings its own brackets, like "<Character profile>", keeps them.
+            Text(title.hasPrefix("<") ? title.uppercased() : "[\(title.uppercased())]")
+                .font(.hud(19)).tracking(1.5)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    @ViewBuilder private var panel: some View {
+        if notice {
+            WindowShape().fill(LinearGradient(colors: [tint.opacity(0.16), Ink.deep.opacity(0.95)],
+                                              startPoint: .top, endPoint: .bottom))
+                .background(WindowShape().fill(Ink.deep.opacity(0.9)))
+        } else {
+            WindowShape().fill(LinearGradient(colors: [tint.opacity(0.62), tint.opacity(0.30)],
+                                              startPoint: .top, endPoint: .bottom))
+                .background(WindowShape().fill(Ink.deep.opacity(0.6)))
+        }
+    }
+
+    @ViewBuilder private var frame: some View {
+        if notice {
+            ZStack {
+                WindowShape().stroke(tint, lineWidth: 2)
+                // The thick lit edges at top and bottom.
+                VStack {
+                    Capsule().fill(tint).frame(height: 3).padding(.horizontal, 20)
+                    Spacer()
+                    Capsule().fill(tint).frame(height: 3).padding(.horizontal, 20)
+                }
+                .shadow(color: tint, radius: 6)
+            }
+        } else {
+            ZStack {
+                WindowShape(cut: 10).stroke(.white.opacity(0.3), lineWidth: 1).padding(6)
+                WindowShape().stroke(.white.opacity(0.85), lineWidth: 1.5)
+            }
         }
     }
 
@@ -316,6 +369,79 @@ struct SystemWindow<Content: View>: View {
         }
         .foregroundStyle(.white.opacity(0.8))
         .accessibilityHidden(true)
+    }
+}
+
+/// Small glowing squares scattered just outside a window's edge, like a
+/// hologram that has not quite settled. Decoration only.
+struct PixelBits: View {
+    var tint: Color = .white
+
+    /// (x, y) as fractions of the window, with a side length in points.
+    private static let bits: [(x: CGFloat, y: CGFloat, size: CGFloat)] = [
+        (-0.012, 0.16, 7), (-0.02, 0.21, 4), (1.012, 0.66, 8), (1.02, 0.72, 4),
+        (0.10, -0.012, 5), (0.88, 1.012, 6), (-0.012, 0.82, 5),
+    ]
+
+    var body: some View {
+        GeometryReader { proxy in
+            ForEach(Self.bits.indices, id: \.self) { index in
+                let bit = Self.bits[index]
+                Rectangle()
+                    .fill(tint.opacity(0.85))
+                    .frame(width: bit.size, height: bit.size)
+                    .shadow(color: Ink.ai, radius: 4)
+                    .position(x: proxy.size.width * bit.x, y: proxy.size.height * bit.y)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// One line in the system's voice: "[THE UPDATE IS COMPLETE.]"
+struct SystemLine: View {
+    let text: String
+    var tint: Color = .white
+    var size: CGFloat = 17
+
+    init(_ text: String, tint: Color = .white, size: CGFloat = 17) {
+        self.text = text
+        self.tint = tint
+        self.size = size
+    }
+
+    // Sentence case in the normal face: brackets keep the "system" voice, and
+    // the text stays easy to read. Capitals are kept for window titles only.
+    var body: some View {
+        Text("[\(text)]")
+            .font(.text(size, weight: .semibold))
+            .foregroundStyle(tint)
+    }
+}
+
+/// A labelled bar: "STRENGTH · 34 · 4/10 to +20%".
+struct MeterBar: View {
+    var value: Double
+    var tint: Color = Ink.ai
+    var height: CGFloat = 8
+    /// Tick marks, like a segmented gauge. 0 for a plain bar.
+    var segments = 10
+
+    var body: some View {
+        ProgressLine(value: value, tint: tint, height: height)
+            .overlay {
+                if segments > 1 {
+                    HStack(spacing: 0) {
+                        ForEach(1..<segments, id: \.self) { _ in
+                            Spacer()
+                            Rectangle().fill(Ink.deep.opacity(0.7)).frame(width: 1.5)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            .clipShape(Capsule())
     }
 }
 

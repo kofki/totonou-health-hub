@@ -15,6 +15,8 @@ enum Glyph: String, CaseIterable {
     case tap, watch, heart, calendar
     // Everything else
     case flame, hourglass, lock, sync, plus, chevron, scroll, sword, person, check, cloud, bell, speaker
+    // Rewards and system windows
+    case notice, chest, freeze, crown, pass, alarm, star, bolt, shield, target, warning, rankUp
 }
 
 /// Turns grid coordinates into real points inside a rectangle, so paths can be
@@ -232,6 +234,78 @@ extension Glyph {
             p.polyline(g(8, 16), g(20, 4))
             p.polyline(g(5, 13), g(11, 19))
             p.polyline(g(8, 16), g(4, 20))
+
+        case .notice:
+            // The "!" badge on system windows.
+            p.addRoundedRect(in: CGRect(origin: g(4, 4), size: CGSize(width: g.length(16), height: g.length(16))),
+                             cornerSize: CGSize(width: g.length(3), height: g.length(3)))
+            p.polyline(g(12, 8), g(12, 13.5))
+            p.polyline(g(12, 16.4), g(12, 16.6))
+
+        case .chest:
+            p.addRect(CGRect(origin: g(4, 10), size: CGSize(width: g.length(16), height: g.length(9))))
+            p.move(to: g(4, 10))
+            p.addQuadCurve(to: g(20, 10), control: g(12, 3))
+            p.polyline(g(4, 13), g(20, 13))
+            p.polyline(g(12, 12), g(12, 15.5))
+
+        case .freeze:
+            p.polyline(g(12, 3), g(12, 21))
+            p.polyline(g(4.2, 7.5), g(19.8, 16.5))
+            p.polyline(g(4.2, 16.5), g(19.8, 7.5))
+            p.polyline(g(9.5, 4.5), g(12, 7), g(14.5, 4.5))
+            p.polyline(g(9.5, 19.5), g(12, 17), g(14.5, 19.5))
+
+        case .crown:
+            p.polyline(g(4, 18), g(20, 18), g(18.5, 8), g(14.5, 12), g(12, 6), g(9.5, 12), g(5.5, 8), g(4, 18))
+
+        case .pass:
+            p.addRoundedRect(in: CGRect(origin: g(3.5, 7), size: CGSize(width: g.length(17), height: g.length(10))),
+                             cornerSize: CGSize(width: g.length(2), height: g.length(2)))
+            p.polyline(g(14, 7), g(14, 9))
+            p.polyline(g(14, 11), g(14, 13))
+            p.polyline(g(14, 15), g(14, 17))
+
+        case .alarm:
+            p.addEllipse(in: CGRect(origin: g(5, 6), size: CGSize(width: g.length(14), height: g.length(14))))
+            p.polyline(g(12, 9.5), g(12, 13), g(14.5, 15))
+            p.polyline(g(4, 6), g(7, 3.5))
+            p.polyline(g(20, 6), g(17, 3.5))
+
+        case .star:
+            // Five outer and five inner points, alternating round the centre.
+            let points = (0..<10).map { index -> CGPoint in
+                let angle = -Double.pi / 2 + Double(index) * .pi / 5
+                let radius = index.isMultiple(of: 2) ? 9.0 : 4.0
+                return g(12 + radius * cos(angle), 12.5 + radius * sin(angle))
+            }
+            p.addLines(points + [points[0]])
+
+        case .bolt:
+            p.polyline(g(13, 3), g(6, 13), g(11, 13), g(10, 21), g(18, 10), g(13, 10), g(13, 3))
+
+        case .shield:
+            p.move(to: g(12, 3))
+            p.addLine(to: g(19, 6))
+            p.addLine(to: g(19, 11))
+            p.addQuadCurve(to: g(12, 21), control: g(19, 18))
+            p.addQuadCurve(to: g(5, 11), control: g(5, 18))
+            p.addLine(to: g(5, 6))
+            p.closeSubpath()
+
+        case .target:
+            p.addEllipse(in: CGRect(origin: g(4, 4), size: CGSize(width: g.length(16), height: g.length(16))))
+            p.addEllipse(in: CGRect(origin: g(8, 8), size: CGSize(width: g.length(8), height: g.length(8))))
+            p.polyline(g(12, 11.8), g(12, 12.2))
+
+        case .warning:
+            p.polyline(g(12, 4), g(21, 19.5), g(3, 19.5), g(12, 4))
+            p.polyline(g(12, 9.5), g(12, 14))
+            p.polyline(g(12, 16.6), g(12, 16.8))
+
+        case .rankUp:
+            p.polyline(g(6, 12), g(12, 6), g(18, 12))
+            p.polyline(g(6, 18), g(12, 12), g(18, 18))
         }
         return p
     }

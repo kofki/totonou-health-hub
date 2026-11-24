@@ -35,14 +35,19 @@ struct HealthKitSignalSource: SignalSource {
         guard HKHealthStore.isHealthDataAvailable() else { return false }
         do {
             try await store.requestAuthorization(toShare: [], read: readTypes)
+            UserDefaults.standard.set(true, forKey: "healthAsked")
             return true
         } catch {
             return false
         }
     }
 
+    /// Set once you have been asked, from the Connect screen. Until then the
+    /// app never reads Health, so the permission sheet never appears uninvited.
+    static var wasAsked: Bool { UserDefaults.standard.bool(forKey: "healthAsked") }
+
     func latest() async throws -> [SignalKey: Double] {
-        guard await Self.requestAccess() else { return [:] }
+        guard Self.wasAsked, HKHealthStore.isHealthDataAvailable() else { return [:] }
         let now = Date.now
         let startOfDay = Calendar.current.startOfDay(for: now)
         // `async let` starts all four queries at once; `await` below waits for each.

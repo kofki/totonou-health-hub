@@ -13,7 +13,7 @@ import TotonouCore
 // Each is a ZStack of small shapes, so any part can be animated on its own.
 
 /// A shape described by a closure, so each body part does not need its own type.
-private struct Drawn: Shape {
+struct Drawn: Shape {
     let draw: @Sendable (DrawingGrid) -> Path
 
     func path(in rect: CGRect) -> Path {
@@ -21,7 +21,7 @@ private struct Drawn: Shape {
     }
 }
 
-private func hairline(_ side: CGFloat, _ weight: CGFloat = 1) -> StrokeStyle {
+func hairline(_ side: CGFloat, _ weight: CGFloat = 1) -> StrokeStyle {
     StrokeStyle(lineWidth: max(1, side / 90) * weight, lineCap: .round, lineJoin: .round)
 }
 

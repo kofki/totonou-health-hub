@@ -53,6 +53,8 @@ final class Player {
     var activeTitle: String?
     /// `Achievement` raw values.
     var achievementsRaw: [String] = []
+    /// "skill:level" for each skill already celebrated, so each level-up shows once.
+    var skillLevelsRaw: [String] = []
     /// Streak milestones already opened during the current streak.
     var claimedMilestones: [Int] = []
     /// The last day the daily clear bonus was paid.
@@ -94,6 +96,13 @@ final class Player {
     /// How many days in a row every quest was cleared.
     func clearStreak(on date: Date = .now) -> Int {
         StreakCalculator.currentStreak(completionDays: clearDays, today: date)
+    }
+
+    func skillFacts(on date: Date = .now) -> SkillFacts {
+        SkillFacts(strength: strength, endurance: endurance, intellect: intellect, discipline: discipline,
+                   recovery: recovery, earlyQuests: earlyQuests, streak: streak(on: date), autoDone: autoDone,
+                   bossesDefeated: bossesDefeated, recoveries: recoveries, mustDoDone: mustDoDone,
+                   clearDays: clearDays.count)
     }
 
     func facts(on date: Date = .now) -> AchievementFacts {

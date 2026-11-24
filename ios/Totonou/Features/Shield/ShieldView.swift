@@ -17,8 +17,8 @@ struct ShieldView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var players: [Player]
     @State private var unlockedUntil: Date?
-
-    private let cost = 15
+    @State private var cost = 30
+    @State private var usedPass = 0
     private var tint: Color { locked ? Ink.shu : Ink.ai }
 
     var body: some View {
@@ -56,19 +56,48 @@ struct ShieldView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                VStack(spacing: 10) {
-                    Button("Back to quest") { dismiss() }
-                        .buttonStyle(SystemButtonStyle(tint: tint, filled: true))
-                    if let player = players.first {
-                        Button("Spend \(cost) min (\(player.bankedMinutes) left)") {
-                            engine.spend(minutes: cost, player: player)
-                            withAnimation(.snappy) {
-                                unlockedUntil = Date.now.addingTimeInterval(TimeInterval(cost * 60))
+                if let player = players.first {
+                    VStack(spacing: 10) {
+                        if !locked {
+                            HStack(spacing: 10) {
+                                ForEach([15, 30, 45], id: \.self) { minutes in
+                                    Button { cost = minutes } label: {
+                                        VStack(spacing: 2) {
+                                            Text("\(minutes)").font(.number(24, weight: .bold))
+                                            Text("min").font(.text(12, weight: .semibold))
+                                        }
+                                        .foregroundStyle(cost == minutes ? Ink.sumi : Ink.ai)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 12)
+                                        .background(Ink.ai.opacity(cost == minutes ? 1 : 0.1), in: RoundedRectangle(cornerRadius: 14))
+                                    }
+                                    .buttonStyle(PressStyle())
+                                }
+                            }
+                            Button("Unlock for \(cost) min (\(player.bankedMinutes) banked)") {
+                                engine.spend(minutes: cost, player: player)
+                                withAnimation(.snappy) {
+                                    unlockedUntil = Date.now.addingTimeInterval(TimeInterval(cost * 60))
+                                }
+                            }
+                            .buttonStyle(SystemButtonStyle(tint: Ink.ai, filled: true))
+                            .disabled(player.bankedMinutes < cost)
+                        }
+                        // The one way through a penalty: scarce, and logged.
+                        Button("Emergency pass: 5 min (\(player.emergencyPasses) left)") {
+                            if engine.usePass(player: player) {
+                                usedPass += 1
+                                withAnimation(.snappy) { unlockedUntil = Date.now.addingTimeInterval(5 * 60) }
                             }
                         }
-                        .buttonStyle(SystemButtonStyle(tint: Ink.mute))
-                        .disabled(locked || player.bankedMinutes < cost)
+                        .buttonStyle(SystemButtonStyle(tint: Ink.shu))
+                        .disabled(player.emergencyPasses == 0)
+                        Button("Back to quest") { dismiss() }
+                            .buttonStyle(SystemButtonStyle(tint: Ink.mute))
+                        Text("Preview: nothing outside Totonou is locked until the Screen Time lock is built.")
+                            .caption(size: 12)
                     }
+                    .sensoryFeedback(.warning, trigger: usedPass)
                 }
             }
             .padding(24)
