@@ -92,6 +92,7 @@ extension QuestSource {
         case .garmin: .watch
         case .health: .heart
         case .calendar: .calendar
+        case .reminders: .bell
         }
     }
 }

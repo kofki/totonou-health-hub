@@ -5,10 +5,20 @@ import UserNotifications
 
 @main
 struct TotonouApp: App {
-    @State private var engine = QuestEngine(cloud: SupabaseConfig.makeStore())
+    @State private var engine: QuestEngine
+    /// Made here rather than with `.modelContainer(for:)`, so code outside the
+    /// views (a HealthKit wake-up while no screen is open) can reach the same database.
+    private let container: ModelContainer
 
     init() {
         UNUserNotificationCenter.current().delegate = ReminderPresenter.shared
+        let container = try! ModelContainer(for: Player.self, Quest.self, Arc.self, Boss.self, BossTask.self)
+        let engine = QuestEngine(cloud: SupabaseConfig.makeStore())
+        self.container = container
+        _engine = State(initialValue: engine)
+        HealthWatcher.shared.start {
+            await engine.syncInBackground(container: container)
+        }
     }
 
     var body: some Scene {
@@ -17,8 +27,7 @@ struct TotonouApp: App {
                 .environment(engine)
                 .preferredColorScheme(.dark)
         }
-        // One line gives every view below a database for these model types.
-        .modelContainer(for: [Player.self, Quest.self, Arc.self, Boss.self, BossTask.self])
+        .modelContainer(container)
     }
 }
 
@@ -90,6 +99,7 @@ struct RootView: View {
         .task(id: backupKey) {
             guard let player = players.first else { return }
             let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
+            engine.publishWidget(player: player, quests: today)
             await engine.refreshReminders(quests: today, plan: arcs.first?.plan ?? [])
             await engine.backUp(player: player, quests: today)
         }
@@ -99,14 +109,22 @@ struct RootView: View {
         }
         .task {
             Bootstrap.start(context)
-            if let player = players.first { engine.refreshStreak(player: player) }
+            await arrive()
         }
         // Coming back to the app on a new day creates that day's quests.
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Bootstrap.rollDailyQuests(context)
-            if let player = players.first { engine.refreshStreak(player: player) }
+            Task { await arrive() }
         }
+    }
+
+    /// Everything that should be fresh whenever the app is opened.
+    private func arrive() async {
+        guard let player = try? context.fetch(FetchDescriptor<Player>()).first else { return }
+        engine.refreshStreak(player: player)
+        await engine.importReminders(context: context, player: player)
+        await engine.syncInBackground(container: context.container)
     }
 
     /// Changes whenever something worth saving changes.

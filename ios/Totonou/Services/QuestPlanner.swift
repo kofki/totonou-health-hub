@@ -8,9 +8,11 @@ enum QuestPlanner {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: day)
         return ideas.map { idea in
-            Quest(title: idea.title, stat: idea.stat, rank: idea.rank,
-                  scheduledAt: calendar.date(bySettingHour: idea.hour, minute: idea.minute, second: 0, of: start) ?? start,
-                  durationMinutes: idea.minutes, arc: arc)
+            // Quests Health can prove get a target and complete themselves.
+            let signal = SignalTarget.guess(from: idea.title)
+            return Quest(title: idea.title, stat: idea.stat, rank: idea.rank, source: signal == nil ? .manual : .health,
+                         scheduledAt: calendar.date(bySettingHour: idea.hour, minute: idea.minute, second: 0, of: start) ?? start,
+                         durationMinutes: idea.minutes, signal: signal?.key, target: signal?.target, arc: arc)
         }
     }
 
@@ -41,8 +43,9 @@ enum Bootstrap {
     }
 
     /// Creates today's quests from the current arc's plan, if today has none yet.
+    /// Quests that land on a busy calendar block move to the next free slot.
     @MainActor
-    static func rollDailyQuests(_ context: ModelContext, now: Date = .now) {
+    static func rollDailyQuests(_ context: ModelContext, day: any DaySource = EventKitDaySource.shared, now: Date = .now) {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: now)
         let end = calendar.date(byAdding: .day, value: 1, to: start)!
@@ -52,7 +55,13 @@ enum Bootstrap {
         var newest = FetchDescriptor<Arc>(sortBy: [SortDescriptor(\.startDate, order: .reverse)])
         newest.fetchLimit = 1
         guard let arc = try? context.fetch(newest).first, !arc.plan.isEmpty else { return }
-        for quest in QuestPlanner.quests(from: arc.plan, on: now, arc: arc) { context.insert(quest) }
+        let busy = day.busyBlocks(on: now)
+        for quest in QuestPlanner.quests(from: arc.plan, on: now, arc: arc) {
+            if let free = DayPlanner.firstFreeStart(at: quest.scheduledAt, minutes: quest.durationMinutes, busy: busy, dayEnd: end) {
+                quest.scheduledAt = free
+            }
+            context.insert(quest)
+        }
     }
 
     /// Earlier builds filled the app with sample quests, an arc and bosses. This

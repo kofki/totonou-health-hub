@@ -52,6 +52,28 @@ public struct WidgetSnapshot: Codable, Sendable {
         self.word = word
     }
 
+    /// Shown before the app has written anything: no invented quest.
+    public static func empty(on date: Date = .now) -> WidgetSnapshot {
+        WidgetSnapshot(questTitle: "No quests yet", questTime: "", questRank: .e, streak: 0, level: 1,
+                       word: WordBook.word(for: date))
+    }
+
+    /// The App Group both the app and the widget belong to (Config/*.entitlements).
+    /// Its UserDefaults are a small store that both processes can read.
+    public static let groupID = "group.dev.totonou.app"
+    private static let key = "widgetSnapshot"
+
+    public func save() {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        UserDefaults(suiteName: Self.groupID)?.set(data, forKey: Self.key)
+    }
+
+    public static func load() -> WidgetSnapshot? {
+        guard let data = UserDefaults(suiteName: groupID)?.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(WidgetSnapshot.self, from: data)
+    }
+
+    /// For Xcode previews and the widget gallery placeholder only.
     public static let sample = WidgetSnapshot(
         questTitle: "Run 5 km · Zone 2",
         questTime: "17:30",

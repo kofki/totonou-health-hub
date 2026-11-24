@@ -1,18 +1,22 @@
 import SwiftUI
 import TotonouCore
 import WidgetKit
+#if canImport(AlarmKit)
+import ActivityKit
+import AlarmKit
+#endif
 
 // The next-quest widget: home screen (small, medium) and lock screen.
 //
 // EXERCISE 7 · 窓 · Make the widget real                    (WidgetKit)
-//   Right now every entry is WidgetSnapshot.sample. To show live data:
-//   1. Add the App Groups capability to BOTH targets with the same group id.
-//   2. In the app, encode a WidgetSnapshot with JSONEncoder and write it to
-//      UserDefaults(suiteName: "<your group id>") whenever a quest changes, then
-//      call WidgetCenter.shared.reloadAllTimelines().
-//   3. Here, decode it in `currentSnapshot()` and fall back to .sample.
-//   4. Then add a second widget (streak, or the word of the day) and list it in
-//      the bundle below.
+//   Status: steps 1–3 handed over to Claude on 2026-11-24 (owner's choice):
+//   1. App Group group.dev.totonou.app on both targets (Config/*.entitlements).
+//   2. QuestEngine.publishWidget writes a WidgetSnapshot through the group's
+//      UserDefaults and reloads the timelines (WidgetSnapshot.save()).
+//   3. currentSnapshot() reads it back, and shows "No quests yet" before the
+//      app has written anything (no sample data on a real screen).
+//   4. Still yours, as a stretch: add a second widget (streak, or the word of
+//      the day) and list it in the bundle below.
 
 struct QuestEntry: TimelineEntry {
     let date: Date
@@ -21,8 +25,7 @@ struct QuestEntry: TimelineEntry {
 
 struct QuestProvider: TimelineProvider {
     private func currentSnapshot() -> WidgetSnapshot {
-        // TODO(you): Exercise 7, step 3.
-        .sample
+        WidgetSnapshot.load() ?? .empty()
     }
 
     func placeholder(in context: Context) -> QuestEntry {
@@ -110,5 +113,59 @@ struct NextQuestWidget: Widget {
 struct TotonouWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextQuestWidget()
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            QuestAlarmActivity()
+        }
+        #endif
     }
 }
+
+#if canImport(AlarmKit)
+/// What a snoozed quest alarm shows on the Lock Screen and in the Dynamic
+/// Island while it counts down. AlarmKit draws the ringing alert itself, but a
+/// countdown needs a Live Activity, and Live Activities live in a widget extension.
+@available(iOS 26.0, *)
+struct QuestAlarmActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: AlarmAttributes<QuestAlarmData>.self) { context in
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Snoozed").caption(Ink.ai, size: 13)
+                    Text(context.attributes.metadata?.title ?? "Quest").font(.text(17, weight: .semibold))
+                }
+                Spacer()
+                countdown(context.state).font(.number(28, weight: .bold))
+            }
+            .padding()
+            .foregroundStyle(Ink.washi)
+            .activityBackgroundTint(Ink.sumi)
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Text(context.attributes.metadata?.title ?? "Quest").font(.text(15, weight: .semibold))
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    countdown(context.state).font(.number(20, weight: .bold))
+                }
+            } compactLeading: {
+                Text("Quest").font(.text(12, weight: .semibold)).foregroundStyle(Ink.ai)
+            } compactTrailing: {
+                countdown(context.state).font(.number(13, weight: .semibold))
+            } minimal: {
+                countdown(context.state).font(.number(11, weight: .semibold))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func countdown(_ state: AlarmPresentationState) -> some View {
+        if case .countdown(let countdown) = state.mode {
+            // A timer Text counts down by itself; the widget does not need to redraw.
+            Text(timerInterval: Date.now...countdown.fireDate, countsDown: true).monospacedDigit()
+        } else {
+            Text("–")
+        }
+    }
+}
+#endif

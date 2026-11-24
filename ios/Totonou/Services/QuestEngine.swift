@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import SwiftData
 import TotonouCore
+import WidgetKit
 
 /// What a finished quest or a boss hit just paid. Shown as a banner by RootView.
 struct RewardNotice: Identifiable, Equatable {
@@ -79,13 +80,98 @@ final class QuestEngine {
     private let signals: any SignalSource
     private let cloud: any CloudStore
     private let reminders: any Reminders
+    /// Calendar events and Apple Reminders.
+    let day: any DaySource
+    let alarms: any QuestAlarms
+
+    /// The daily wake-up alarm, remembered between launches.
+    private(set) var wakeAlarmID = UserDefaults.standard.string(forKey: "wakeAlarmID")
 
     init(signals: any SignalSource = HealthKitSignalSource(), cloud: any CloudStore = MockCloudStore(),
-         reminders: any Reminders = LocalReminders()) {
+         reminders: any Reminders = LocalReminders(), day: any DaySource = EventKitDaySource.shared,
+         alarms: (any QuestAlarms)? = nil) {
         self.signals = signals
         self.cloud = cloud
         self.reminders = reminders
+        self.day = day
+        // Built here, not as a default argument: defaults run outside the main actor.
+        self.alarms = alarms ?? Alarms.make()
         self.cloudState = cloud is MockCloudStore ? .local : .syncing
+    }
+
+    // MARK: Alarms
+
+    /// An alarm 10 minutes before a quest starts (or at its start, if that is closer).
+    func setAlarm(_ on: Bool, for quest: Quest, now: Date = .now) async {
+        if let id = quest.alarmID { alarms.cancel(id: id); quest.alarmID = nil }
+        guard on, quest.isOpen else { return }
+        let early = quest.scheduledAt.addingTimeInterval(-10 * 60)
+        let at = early > now ? early : quest.scheduledAt
+        guard at > now else { return }
+        quest.alarmID = await alarms.schedule(title: quest.title, at: at)
+    }
+
+    /// A daily alarm 10 minutes before the arc's first quest of the day.
+    func setWakeAlarm(_ on: Bool, plan: [QuestIdea]) async {
+        if let id = wakeAlarmID { alarms.cancel(id: id) }
+        wakeAlarmID = nil
+        if on, let first = plan.min(by: { ($0.hour, $0.minute) < ($1.hour, $1.minute) }) {
+            let total = first.hour * 60 + first.minute - 10
+            wakeAlarmID = await alarms.scheduleDaily(title: first.title, hour: total / 60, minute: total % 60)
+        }
+        UserDefaults.standard.set(wakeAlarmID, forKey: "wakeAlarmID")
+    }
+
+    // MARK: Widget
+
+    /// Hand the widget the next quest, level and streak, then ask it to redraw.
+    func publishWidget(player: Player, quests: [Quest], now: Date = .now) {
+        let next = quests.filter { $0.isOpen && $0.dueAt > now }.min { $0.scheduledAt < $1.scheduledAt }
+        let snapshot = WidgetSnapshot(
+            questTitle: next?.title ?? (quests.isEmpty ? "No quests yet" : "All clear"),
+            questTime: next?.scheduledAt.clock ?? "",
+            questRank: next?.rank ?? .e,
+            streak: player.streak(on: now),
+            level: player.progress.level,
+            word: WordBook.word(for: now)
+        )
+        snapshot.save()
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    // MARK: Calendar and Reminders
+
+    /// Reminders due today (or overdue) become quests, once each. A reminder
+    /// ticked off in the Reminders app completes its quest here too.
+    func importReminders(context: ModelContext, player: Player, now: Date = .now) async {
+        guard day.hasRemindersAccess else { return }
+        let due = await day.remindersDue(by: now)
+        let source = QuestSource.reminders.rawValue
+        let existing = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.sourceRaw == source }))) ?? []
+        let known = Set(existing.compactMap(\.externalID))
+        let calendar = Calendar.current
+        for reminder in due where !known.contains(reminder.id) {
+            // Overdue reminders land on today; ones without a time go to the next half hour.
+            var at = reminder.due ?? now.addingTimeInterval(30 * 60)
+            if !calendar.isDate(at, inSameDayAs: now) { at = now.addingTimeInterval(30 * 60) }
+            let quest = Quest(title: reminder.title, stat: .discipline, rank: .e, source: .reminders,
+                              scheduledAt: at, durationMinutes: 15)
+            quest.externalID = reminder.id
+            context.insert(quest)
+        }
+        for quest in existing where quest.isOpen {
+            guard let id = quest.externalID else { continue }
+            if day.isReminderCompleted(id: id) == true { complete(quest, player: player, auto: true, now: now) }
+        }
+    }
+
+    /// Turn a calendar event into a quest at the same time.
+    func addQuest(from event: CalendarEventInfo, stat: Stat = .discipline, context: ModelContext) {
+        let minutes = max(5, Int(event.end.timeIntervalSince(event.start) / 60))
+        let quest = Quest(title: event.title, stat: stat, rank: minutes >= 60 ? .c : .d, source: .calendar,
+                          scheduledAt: event.start, durationMinutes: min(minutes, 240))
+        quest.externalID = event.id
+        context.insert(quest)
     }
 
     // MARK: Cloud backup
@@ -162,6 +248,10 @@ final class QuestEngine {
         quest.completedAt = now
         quest.autoCompleted = auto
         Sounds.play(.complete)
+        // Keep Apple Reminders in step: done here means done there.
+        if quest.source == .reminders, let id = quest.externalID { day.completeReminder(id: id) }
+        // A finished quest needs no alarm.
+        if let id = quest.alarmID { alarms.cancel(id: id); quest.alarmID = nil }
         if quest.isRecovery {
             player.recoveries += 1
         } else {
@@ -344,6 +434,19 @@ final class QuestEngine {
             }
         }
         lastSync = .now
+    }
+
+    /// The same as pulling to refresh, for when Health wakes the app with no screen open.
+    func syncInBackground(container: ModelContainer, now: Date = .now) async {
+        // The main context belongs to the main actor, which this engine runs on.
+        let context = container.mainContext
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: now)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start),
+              let player = try? context.fetch(FetchDescriptor<Player>()).first else { return }
+        let today = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= start && $0.scheduledAt < end }))) ?? []
+        await sync(quests: today, player: player)
+        try? context.save()
     }
 
     // MARK: Penalties

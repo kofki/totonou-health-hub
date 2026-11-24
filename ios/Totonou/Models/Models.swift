@@ -8,7 +8,7 @@ import TotonouCore
 
 /// Where the proof that a quest is done comes from.
 enum QuestSource: String, CaseIterable {
-    case manual, garmin, health, calendar
+    case manual, garmin, health, calendar, reminders
 
     var name: String {
         switch self {
@@ -16,6 +16,7 @@ enum QuestSource: String, CaseIterable {
         case .garmin: "Garmin"
         case .health: "Health"
         case .calendar: "Calendar"
+        case .reminders: "Reminders"
         }
     }
 }
@@ -141,6 +142,10 @@ final class Quest {
     var failedAt: Date?
     var autoCompleted: Bool
     var arc: Arc?
+    /// The calendar event or reminder this quest came from, if any.
+    var externalID: String?
+    /// The AlarmKit alarm that rings before this quest, if one is set.
+    var alarmID: String?
 
     init(title: String, stat: Stat, rank: Rank, source: QuestSource = .manual, isCritical: Bool = false,
          isRecovery: Bool = false, scheduledAt: Date, durationMinutes: Int = 15,
