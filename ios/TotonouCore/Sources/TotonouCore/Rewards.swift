@@ -77,118 +77,6 @@ public enum Titles {
     }
 }
 
-/// Unique skills: named abilities that grow out of how you play, not out of
-/// any one quest. Each has its own measure and its own thresholds, Lv. 1 to 10.
-public enum Skill: String, CaseIterable, Sendable {
-    case ironBody, secondWind, sharpMind, unyielding, stillWater
-    case dawnWalker, eternalFlame, livingProof, giantSlayer, phoenix, oathKeeper, flawless
-
-    public var name: String {
-        switch self {
-        case .ironBody: "Iron Body"
-        case .secondWind: "Second Wind"
-        case .sharpMind: "Sharp Mind"
-        case .unyielding: "Unyielding"
-        case .stillWater: "Still Water"
-        case .dawnWalker: "Dawn Walker"
-        case .eternalFlame: "Eternal Flame"
-        case .livingProof: "Living Proof"
-        case .giantSlayer: "Giant Slayer"
-        case .phoenix: "Phoenix"
-        case .oathKeeper: "Oath Keeper"
-        case .flawless: "Flawless"
-        }
-    }
-
-    public var detail: String {
-        switch self {
-        case .ironBody: "Grows with Strength."
-        case .secondWind: "Grows with Endurance."
-        case .sharpMind: "Grows with Intellect."
-        case .unyielding: "Grows with Discipline."
-        case .stillWater: "Grows with Recovery."
-        case .dawnWalker: "Quests finished before 06:30."
-        case .eternalFlame: "The length of your streak."
-        case .livingProof: "Quests your data proved, not your word."
-        case .giantSlayer: "Bosses defeated."
-        case .phoenix: "Coming back from the penalty zone."
-        case .oathKeeper: "Must-do quests kept."
-        case .flawless: "Days with every quest cleared."
-        }
-    }
-
-    /// The count needed for each level, Lv. 1 first.
-    public var thresholds: [Int] {
-        switch self {
-        case .ironBody, .secondWind, .sharpMind, .unyielding, .stillWater:
-            [5, 10, 20, 30, 45, 60, 80, 100, 130, 160]
-        case .eternalFlame:
-            [3, 7, 14, 21, 30, 45, 60, 100, 180, 365]
-        case .giantSlayer, .phoenix:
-            [1, 2, 4, 6, 9, 12, 16, 20, 25, 30]
-        default:
-            [1, 3, 7, 15, 25, 40, 60, 80, 100, 150]
-        }
-    }
-
-    public func measure(_ facts: SkillFacts) -> Int {
-        switch self {
-        case .ironBody: facts.strength
-        case .secondWind: facts.endurance
-        case .sharpMind: facts.intellect
-        case .unyielding: facts.discipline
-        case .stillWater: facts.recovery
-        case .dawnWalker: facts.earlyQuests
-        case .eternalFlame: facts.streak
-        case .livingProof: facts.autoDone
-        case .giantSlayer: facts.bossesDefeated
-        case .phoenix: facts.recoveries
-        case .oathKeeper: facts.mustDoDone
-        case .flawless: facts.clearDays
-        }
-    }
-
-    /// 0 while still locked, otherwise 1...10.
-    public func level(_ facts: SkillFacts) -> Int {
-        let value = measure(facts)
-        return thresholds.filter { value >= $0 }.count
-    }
-
-    /// How far into the current level, 0...1, for a progress bar. 1 at max level.
-    public func progress(_ facts: SkillFacts) -> Double {
-        let value = measure(facts)
-        let level = self.level(facts)
-        guard level < thresholds.count else { return 1 }
-        let low = level == 0 ? 0 : thresholds[level - 1]
-        let high = thresholds[level]
-        return Double(value - low) / Double(high - low)
-    }
-}
-
-/// The numbers skills are measured on.
-public struct SkillFacts: Equatable, Sendable {
-    public var strength = 0, endurance = 0, intellect = 0, discipline = 0, recovery = 0
-    public var earlyQuests = 0, streak = 0, autoDone = 0, bossesDefeated = 0
-    public var recoveries = 0, mustDoDone = 0, clearDays = 0
-
-    public init(strength: Int = 0, endurance: Int = 0, intellect: Int = 0, discipline: Int = 0, recovery: Int = 0,
-                earlyQuests: Int = 0, streak: Int = 0, autoDone: Int = 0, bossesDefeated: Int = 0,
-                recoveries: Int = 0, mustDoDone: Int = 0, clearDays: Int = 0) {
-        self.strength = strength
-        self.endurance = endurance
-        self.intellect = intellect
-        self.discipline = discipline
-        self.recovery = recovery
-        self.earlyQuests = earlyQuests
-        self.streak = streak
-        self.autoDone = autoDone
-        self.bossesDefeated = bossesDefeated
-        self.recoveries = recoveries
-        self.mustDoDone = mustDoDone
-        self.clearDays = clearDays
-    }
-}
-
 /// A chest for keeping a streak alive.
 public struct StreakMilestone: Equatable, Sendable {
     public let days: Int
@@ -244,7 +132,7 @@ public enum StreakFreeze {
 }
 
 /// How hard an achievement is to get. Shown as its colour and label.
-public enum Rarity: String, CaseIterable, Sendable {
+public enum Rarity: String, CaseIterable, Codable, Sendable {
     case common, rare, epic, legendary
 
     public var title: String { rawValue.capitalized }

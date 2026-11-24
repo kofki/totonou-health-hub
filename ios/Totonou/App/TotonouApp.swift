@@ -132,6 +132,7 @@ struct RootView: View {
     private func arrive() async {
         guard let player = try? context.fetch(FetchDescriptor<Player>()).first else { return }
         engine.refreshStreak(player: player)
+        await engine.refreshSkills()
         await engine.importReminders(context: context, player: player)
         await engine.syncInBackground(container: context.container)
     }

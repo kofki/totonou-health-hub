@@ -140,6 +140,7 @@ struct RewardsView: View {
 struct CharacterProfile: View {
     let player: Player
     let quests: [Quest]
+    @Environment(QuestEngine.self) private var engine
 
     var body: some View {
         SystemWindow(title: "<Character profile>", leading: true) {
@@ -175,7 +176,7 @@ struct CharacterProfile: View {
     /// Unlocked unique skills, highest level first.
     private var skills: [String] {
         let facts = player.skillFacts()
-        return Skill.allCases
+        return engine.skills
             .map { ($0, $0.level(facts)) }
             .filter { $0.1 > 0 }
             .sorted { $0.1 > $1.1 }

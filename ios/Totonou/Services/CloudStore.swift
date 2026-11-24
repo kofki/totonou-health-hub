@@ -1,4 +1,5 @@
 import Foundation
+import TotonouCore
 
 // The cloud copy of your progress. Like every outside system in this app it sits
 // behind a protocol: the engine talks to `CloudStore`, and does not know or care
@@ -57,6 +58,8 @@ protocol CloudStore: Sendable {
     func save(quests: [QuestRecord]) async throws
     /// The profile stored in the cloud, or nil if there is none yet.
     func loadProfile() async throws -> ProfileRecord?
+    /// The skill catalogue (the `skills` table). Readable by everyone signed in.
+    func loadSkills() async throws -> [SkillDefinition]
 }
 
 /// Keeps everything in memory. Used in previews, and when no project is configured.
@@ -68,6 +71,7 @@ actor MockCloudStore: CloudStore {
     func save(profile: ProfileRecord) async throws { self.profile = profile }
     func save(quests: [QuestRecord]) async throws { self.quests = quests }
     func loadProfile() async throws -> ProfileRecord? { profile }
+    func loadSkills() async throws -> [SkillDefinition] { [] }
 }
 
 /// What the Status screen says about the backup.

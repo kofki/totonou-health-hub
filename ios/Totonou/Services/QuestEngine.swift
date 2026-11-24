@@ -47,7 +47,7 @@ struct Celebration: Identifiable, Equatable {
         case achievement(Achievement)
         case dayClear(DayClearEvent)
         case freezeUsed(days: Int, streak: Int)
-        case skill(Skill, level: Int)
+        case skill(SkillDefinition, level: Int)
     }
 
     let id = UUID()
@@ -75,7 +75,7 @@ final class QuestEngine {
         celebrations = [
             .init(kind: .levelUp(LevelUpEvent(from: 19, to: 20, rewards: Rewards.rewards(from: 19, to: 20),
                                               evidence: ["6 quests cleared", "2 finished from real data", "Strength +4 · Endurance +2"]))),
-            .init(kind: .skill(.ironBody, level: 1)),
+            .init(kind: .skill(SkillCatalog.builtIn[0], level: 1)),
             .init(kind: .achievement(.streak7)),
             .init(kind: .milestone(StreakMilestones.all[1])),
             .init(kind: .freezeUsed(days: 1, streak: 8)),
@@ -91,6 +91,16 @@ final class QuestEngine {
     var lastSync: Date?
     /// Today's Health readings from the last sync, for quest progress bars.
     private(set) var readings: [SignalKey: Double] = [:]
+
+    /// The skill catalogue: the Supabase `skills` table when it can be read,
+    /// otherwise the list built into the app.
+    private(set) var skills: [SkillDefinition] = SkillCatalog.builtIn
+
+    func refreshSkills() async {
+        guard !(cloud is MockCloudStore), let rows = try? await cloud.loadSkills() else { return }
+        let usable = SkillCatalog.valid(rows)
+        if !usable.isEmpty { skills = usable }
+    }
 
     /// One must-do quest per day: missing it sends you to the penalty zone.
     /// Turning one on turns the others for today off.
@@ -292,7 +302,22 @@ final class QuestEngine {
             if auto { player.autoDone += 1 }
             if quest.isCritical { player.mustDoDone += 1 }
             let clock = Calendar.current.dateComponents([.hour, .minute], from: now)
-            if (clock.hour ?? 12) * 60 + (clock.minute ?? 0) < 6 * 60 + 30 { player.earlyQuests += 1 }
+            let minute = (clock.hour ?? 12) * 60 + (clock.minute ?? 0)
+            if minute < 6 * 60 + 30 { player.earlyQuests += 1 }
+            if minute >= 21 * 60 { player.nightQuests += 1 }
+            if now <= quest.dueAt { player.onTimeQuests += 1 }
+            if quest.durationMinutes >= 60 { player.longQuests += 1 }
+            if quest.rank >= .a { player.hardQuests += 1 }
+            if auto {
+                switch quest.signalKey.flatMap(SignalKey.init(rawValue:)) {
+                case .runKm: player.runQuests += 1
+                case .steps: player.stepQuests += 1
+                case .focusMinutes: player.mindfulQuests += 1
+                default: break
+                }
+            }
+            if quest.source == .calendar { player.calendarQuests += 1 }
+            if quest.source == .reminders { player.reminderQuests += 1 }
             reward(player, xp: xp, context: quest.modelContext, now: now)
             notice = RewardNotice(xp: xp, stat: quest.stat,
                                   points: quest.rank.statPoints, minutes: quest.rank.earnedMinutes)
@@ -407,11 +432,15 @@ final class QuestEngine {
     /// A skill unlocking or reaching a new level gets its own moment.
     private func checkSkills(_ player: Player, now: Date) {
         let facts = player.skillFacts(on: now)
-        for skill in Skill.allCases {
+        for skill in skills {
             let level = skill.level(facts)
-            let key = "\(skill.rawValue):\(level)"
-            guard level > 0, !player.skillLevelsRaw.contains(key) else { continue }
-            player.skillLevelsRaw.removeAll { $0.hasPrefix("\(skill.rawValue):") }
+            let key = "\(skill.id):\(level)"
+            // Only a rise is celebrated: a skill whose thresholds were raised in the
+            // database just quietly shows the lower level.
+            let known = player.skillLevelsRaw.first { $0.hasPrefix("\(skill.id):") }
+                .flatMap { Int($0.split(separator: ":").last ?? "") } ?? 0
+            guard level > known, !player.skillLevelsRaw.contains(key) else { continue }
+            player.skillLevelsRaw.removeAll { $0.hasPrefix("\(skill.id):") }
             player.skillLevelsRaw.append(key)
             celebrations.append(Celebration(kind: .skill(skill, level: level)))
         }

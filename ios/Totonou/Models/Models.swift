@@ -70,6 +70,15 @@ final class Player {
     var recoveries: Int = 0
     var earlyQuests: Int = 0
     var mustDoDone: Int = 0
+    var nightQuests: Int = 0
+    var onTimeQuests: Int = 0
+    var longQuests: Int = 0
+    var hardQuests: Int = 0
+    var runQuests: Int = 0
+    var stepQuests: Int = 0
+    var mindfulQuests: Int = 0
+    var calendarQuests: Int = 0
+    var reminderQuests: Int = 0
 
     init(name: String, totalXP: Int = 0, strength: Int = 0, endurance: Int = 0, intellect: Int = 0,
          discipline: Int = 0, recovery: Int = 0, bankedMinutes: Int = 0, completionDays: [Date] = []) {
@@ -99,10 +108,12 @@ final class Player {
     }
 
     func skillFacts(on date: Date = .now) -> SkillFacts {
-        SkillFacts(strength: strength, endurance: endurance, intellect: intellect, discipline: discipline,
-                   recovery: recovery, earlyQuests: earlyQuests, streak: streak(on: date), autoDone: autoDone,
-                   bossesDefeated: bossesDefeated, recoveries: recoveries, mustDoDone: mustDoDone,
-                   clearDays: clearDays.count)
+        [.strength: strength, .endurance: endurance, .intellect: intellect, .discipline: discipline,
+         .recovery: recovery, .earlyQuests: earlyQuests, .nightQuests: nightQuests, .onTimeQuests: onTimeQuests,
+         .longQuests: longQuests, .hardQuests: hardQuests, .mustDoDone: mustDoDone, .recoveries: recoveries,
+         .bossesDefeated: bossesDefeated, .clearDays: clearDays.count, .streak: streak(on: date),
+         .autoDone: autoDone, .runQuests: runQuests, .stepQuests: stepQuests, .mindfulQuests: mindfulQuests,
+         .calendarQuests: calendarQuests, .reminderQuests: reminderQuests]
     }
 
     func facts(on date: Date = .now) -> AchievementFacts {

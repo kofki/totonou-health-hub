@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import TotonouCore
 
 /// Where the project lives. The publishable key is meant to ship inside the app:
 /// on its own it can do nothing, because row-level security only lets a signed-in
@@ -49,6 +50,18 @@ final class SupabaseCloudStore: CloudStore {
                 .upsert(ProfileRow(userID: userID, base), onConflict: "user_id")
                 .execute()
         }
+    }
+
+    /// The skill catalogue. Rows decode straight into `SkillDefinition`, whose
+    /// property names match the column names. A row with an unknown measure or
+    /// rarity fails to decode, so the whole read fails and the app keeps its
+    /// built-in list rather than half a catalogue.
+    func loadSkills() async throws -> [SkillDefinition] {
+        try await client.from("skills")
+            .select("id,name,detail,measure,thresholds,glyph,rarity")
+            .order("sort_order")
+            .execute()
+            .value
     }
 
     /// PostgREST answers PGRST204 when a row names a column the table lacks.

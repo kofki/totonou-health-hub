@@ -28,7 +28,7 @@ struct CelebrationView: View {
 }
 
 private struct SkillScreen: View {
-    let skill: Skill
+    let skill: SkillDefinition
     let level: Int
     let dismiss: () -> Void
 
@@ -37,7 +37,7 @@ private struct SkillScreen: View {
             KitsuneSpirit(tails: 3, tint: skill.tint).frame(width: 90, height: 90)
         } content: {
             SystemWindow(title: level == 1 ? "New skill acquired" : "Skill level up", tint: Ink.ai) {
-                GlyphIcon(skill.glyph, size: 48, tint: .white)
+                GlyphIcon(skill.icon, size: 48, tint: .white)
                 Text(skill.name).font(.text(28, weight: .bold))
                 Text("Lv. \(level)").font(.number(34, weight: .heavy)).foregroundStyle(skill.tint == Ink.ai ? .white : skill.tint)
                 Text(skill.detail).font(.text(17, weight: .medium))

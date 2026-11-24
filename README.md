@@ -16,7 +16,7 @@ level 1 hunter with no arc, and Today asks you to write one.
 | Arcs | You describe a chapter; a planner turns it into goals and daily quests, which appear on Today every day |
 | Planner and coach AI | Apple's on-device model (Foundation Models, iOS 26 with Apple Intelligence on). Without it: keyword rules for the plan, computed findings for the coach |
 | Quests, XP, levels, stats, earned screen time | Working. Each level pays a stat point and 10 banked minutes; titles every 5 levels; rank-ups (every 10) add a streak freeze and an emergency pass; each 10 points in a stat adds 5% XP to its quests |
-| Streaks, freezes, milestone chests, daily clear bonus, achievements, skills | Working, each with its own full-screen moment. 12 unique skills (Iron Body, Dawn Walker, Eternal Flame…) level from 1 to 10 with how you play |
+| Streaks, freezes, milestone chests, daily clear bonus, achievements, skills | Working, each with its own full-screen moment. 21 unique skills (Iron Body, Dawn Walker, Clockwork, Runner's Stride…) level from 1 to 10 with how you play. They come from the Supabase `skills` table, so they can be edited without an app update; the app falls back to the same list built in |
 | Status sheet and character profile | Status shows a game-style status window (stats with + to spend points) and a character profile |
 | Rewards tab | Titles, minutes, freezes, passes, next streak chest, achievements |
 | Penalty zone and recovery quests | Working. Mark one quest a day as "Must do" in its info window; missing it starts the penalty |
@@ -61,7 +61,8 @@ Project URL and publishable key are in `ios/Totonou/Services/SupabaseCloudStore.
 
 One-time setup in the Supabase dashboard:
 
-1. SQL Editor: paste and run `supabase/migrations/20261124000000_init.sql`.
+1. SQL Editor: paste and run each file in `supabase/migrations/`, oldest first
+   (`…_init.sql`, `…_rewards.sql`, `…_skills.sql`).
 2. Authentication → Sign In / Providers: turn on "Allow anonymous sign-ins".
 
 The bottom of the Status screen shows whether the last backup worked, and why not.

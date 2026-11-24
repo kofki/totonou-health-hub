@@ -17,47 +17,26 @@ extension Stat {
     }
 }
 
-extension Skill {
-    var glyph: Glyph {
-        switch self {
-        case .ironBody: .dumbbell
-        case .secondWind: .mountain
-        case .sharpMind: .book
-        case .unyielding: .torii
-        case .stillWater: .moon
-        case .dawnWalker: .alarm
-        case .eternalFlame: .flame
-        case .livingProof: .heart
-        case .giantSlayer: .sword
-        case .phoenix: .rankUp
-        case .oathKeeper: .shield
-        case .flawless: .star
-        }
-    }
+extension SkillDefinition {
+    /// The row names its icon; an unknown name gets a star rather than nothing.
+    var icon: Glyph { Glyph(rawValue: glyph) ?? .star }
 
+    /// Stat skills take their stat's colour; the rest take their rarity's.
     var tint: Color {
-        switch self {
-        case .ironBody: Stat.strength.tint
-        case .secondWind: Stat.endurance.tint
-        case .sharpMind: Stat.intellect.tint
-        case .unyielding: Stat.discipline.tint
-        case .stillWater: Stat.recovery.tint
-        case .dawnWalker, .eternalFlame: Ink.kin
-        case .giantSlayer, .phoenix: Ink.shu
-        case .livingProof, .oathKeeper, .flawless: Ink.ai
-        }
+        if let stat = Stat(rawValue: measure.rawValue) { return stat.tint }
+        return rarity == .common ? Ink.ai : rarity.tint
     }
 }
 
 /// One skill line: icon, name, level, and a thin bar towards the next level.
 struct SkillRow: View {
-    let skill: Skill
+    let skill: SkillDefinition
     let facts: SkillFacts
 
     var body: some View {
         let level = skill.level(facts)
         HStack(spacing: 12) {
-            GlyphIcon(level > 0 ? skill.glyph : .lock, size: 22, tint: level > 0 ? skill.tint : Ink.mute)
+            GlyphIcon(level > 0 ? skill.icon : .lock, size: 22, tint: level > 0 ? skill.tint : Ink.mute)
                 .frame(width: 40, height: 40)
                 .background((level > 0 ? skill.tint : Ink.washi).opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 4) {

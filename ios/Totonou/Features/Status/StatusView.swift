@@ -134,15 +134,15 @@ struct StatusView: View {
     /// Every unique skill: unlocked ones with their level, locked ones hidden.
     private func skills(_ player: Player) -> some View {
         let facts = player.skillFacts()
-        let unlocked = Skill.allCases.filter { $0.level(facts) > 0 }.count
+        let unlocked = engine.skills.filter { $0.level(facts) > 0 }.count
         return VStack(alignment: .leading, spacing: 14) {
             SectionHeader("Skills") {
-                Text("\(unlocked) of \(Skill.allCases.count)").caption(size: 15)
+                Text("\(unlocked) of \(engine.skills.count)").caption(size: 15)
             }
             // Unlocked first, then by how close the rest are.
-            ForEach(Skill.allCases.sorted {
+            ForEach(engine.skills.sorted {
                 ($0.level(facts), $0.progress(facts)) > ($1.level(facts), $1.progress(facts))
-            }, id: \.self) { skill in
+            }) { skill in
                 SkillRow(skill: skill, facts: facts)
             }
         }

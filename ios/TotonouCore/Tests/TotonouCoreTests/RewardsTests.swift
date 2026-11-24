@@ -88,24 +88,46 @@ private func day(_ offset: Int) -> Date {
 }
 
 @Suite struct SkillTests {
+    private func skill(_ id: String) -> SkillDefinition {
+        SkillCatalog.builtIn.first { $0.id == id }!
+    }
+
     @Test func lockedUntilTheFirstThreshold() {
-        #expect(Skill.ironBody.level(SkillFacts(strength: 4)) == 0)
-        #expect(Skill.ironBody.level(SkillFacts(strength: 5)) == 1)
-        #expect(Skill.ironBody.level(SkillFacts(strength: 34)) == 4)
+        #expect(skill("ironBody").level([.strength: 4]) == 0)
+        #expect(skill("ironBody").level([.strength: 5]) == 1)
+        #expect(skill("ironBody").level([.strength: 34]) == 4)
+        #expect(skill("ironBody").level([:]) == 0)
     }
 
     @Test func capsAtTen() {
-        #expect(Skill.giantSlayer.level(SkillFacts(bossesDefeated: 500)) == 10)
-        #expect(Skill.giantSlayer.progress(SkillFacts(bossesDefeated: 500)) == 1)
+        #expect(skill("giantSlayer").level([.bossesDefeated: 500]) == 10)
+        #expect(skill("giantSlayer").progress([.bossesDefeated: 500]) == 1)
     }
 
     @Test func progressWithinALevel() {
         // Eternal Flame Lv. 1 at 3 days, Lv. 2 at 7: 5 days is halfway.
-        #expect(Skill.eternalFlame.progress(SkillFacts(streak: 5)) == 0.5)
+        #expect(skill("eternalFlame").progress([.streak: 5]) == 0.5)
     }
 
-    @Test func everySkillHasTenLevels() {
-        for skill in Skill.allCases { #expect(skill.thresholds.count == 10) }
+    @Test func catalogIsWellFormed() {
+        let ids = SkillCatalog.builtIn.map(\.id)
+        #expect(Set(ids).count == ids.count)
+        #expect(SkillCatalog.valid(SkillCatalog.builtIn).count == SkillCatalog.builtIn.count)
+    }
+
+    @Test func badRowsAreDropped() {
+        let falling = SkillDefinition(id: "x", name: "X", detail: "", measure: .streak, thresholds: [5, 3],
+                                      glyph: "star", rarity: .common)
+        let empty = SkillDefinition(id: "y", name: "Y", detail: "", measure: .streak, thresholds: [],
+                                    glyph: "star", rarity: .common)
+        #expect(SkillCatalog.valid([falling, empty]).isEmpty)
+    }
+
+    @Test func rowsDecodeFromTheDatabaseShape() throws {
+        let json = #"[{"id":"a","name":"A","detail":"d","measure":"runQuests","thresholds":[1,2],"glyph":"star","rarity":"rare"}]"#
+        let rows = try JSONDecoder().decode([SkillDefinition].self, from: Data(json.utf8))
+        #expect(rows.first?.measure == .runQuests)
+        #expect(rows.first?.level([.runQuests: 2]) == 2)
     }
 }
 
