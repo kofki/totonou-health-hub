@@ -144,7 +144,7 @@ struct CharacterProfile: View {
     var body: some View {
         SystemWindow(title: "<Character profile>", leading: true) {
             attributes
-            field("Personal skills", skills.isEmpty ? "None yet. Skills unlock as you play." : skills.joined(separator: ", "))
+            field("Personal skills", skills.isEmpty ? "None" : skills.joined(separator: ", "))
             field("Overall evaluation", evaluation)
         }
     }
@@ -162,7 +162,7 @@ struct CharacterProfile: View {
     private var attributes: some View {
         let earned = Achievement.allCases.filter(player.achievements.contains)
         var line = label("Personal attributes")
-        if earned.isEmpty { line = line + Text("None yet").font(.text(16, weight: .medium)) }
+        if earned.isEmpty { line = line + Text("None").font(.text(16, weight: .medium)) }
         for (index, achievement) in earned.enumerated() {
             let tint = achievement.rarity.tint == Ink.mute ? Color.white.opacity(0.75) : achievement.rarity.tint
             line = line + Text(achievement.title).font(.text(16, weight: .medium))
