@@ -79,6 +79,12 @@ final class Player {
     var mindfulQuests: Int = 0
     var calendarQuests: Int = 0
     var reminderQuests: Int = 0
+    /// All-time workout counts from Apple Health, refreshed on every sync.
+    var workouts: Int = 0
+    var cyclingWorkouts: Int = 0
+    var swimWorkouts: Int = 0
+    var danceWorkouts: Int = 0
+    var martialArtsWorkouts: Int = 0
 
     init(name: String, totalXP: Int = 0, strength: Int = 0, endurance: Int = 0, intellect: Int = 0,
          discipline: Int = 0, recovery: Int = 0, bankedMinutes: Int = 0, completionDays: [Date] = []) {
@@ -113,7 +119,9 @@ final class Player {
          .longQuests: longQuests, .hardQuests: hardQuests, .mustDoDone: mustDoDone, .recoveries: recoveries,
          .bossesDefeated: bossesDefeated, .clearDays: clearDays.count, .streak: streak(on: date),
          .autoDone: autoDone, .runQuests: runQuests, .stepQuests: stepQuests, .mindfulQuests: mindfulQuests,
-         .calendarQuests: calendarQuests, .reminderQuests: reminderQuests]
+         .calendarQuests: calendarQuests, .reminderQuests: reminderQuests,
+         .workouts: workouts, .cyclingWorkouts: cyclingWorkouts, .swimWorkouts: swimWorkouts,
+         .danceWorkouts: danceWorkouts, .martialArtsWorkouts: martialArtsWorkouts]
     }
 
     func facts(on date: Date = .now) -> AchievementFacts {

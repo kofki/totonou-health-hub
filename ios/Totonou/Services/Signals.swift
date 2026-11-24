@@ -1,4 +1,5 @@
 import Foundation
+import TotonouCore
 
 /// A reading from the outside world that can prove a quest is done.
 enum SignalKey: String {
@@ -13,6 +14,13 @@ enum SignalKey: String {
 /// thing later does not touch a single view.
 protocol SignalSource: Sendable {
     func latest() async throws -> [SignalKey: Double]
+    /// All-time workout counts by type, for the workout skills.
+    func workoutCounts() async throws -> [SkillMeasure: Int]
+}
+
+extension SignalSource {
+    /// Sources without workouts report none.
+    func workoutCounts() async throws -> [SkillMeasure: Int] { [:] }
 }
 
 /// Reads a quest title for something Health can prove: "8,000 steps",

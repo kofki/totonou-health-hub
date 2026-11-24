@@ -98,7 +98,9 @@ struct InkMist: View {
     var body: some View {
         // TimelineView redraws on a clock; Canvas draws without creating a view
         // per particle. Together they are the cheap way to animate many things.
-        TimelineView(.animation(minimumInterval: 1 / 24, paused: reduceMotion)) { timeline in
+        // 15 frames a second is plenty for slow drifting motes, and leaves the
+        // rest of each frame for the screen itself.
+        TimelineView(.animation(minimumInterval: 1 / 15, paused: reduceMotion)) { timeline in
             Canvas { context, size in
                 let time = timeline.date.timeIntervalSinceReferenceDate
                 for index in 0..<count {

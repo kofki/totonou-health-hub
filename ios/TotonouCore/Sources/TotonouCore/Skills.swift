@@ -21,6 +21,8 @@ public enum SkillMeasure: String, CaseIterable, Codable, Sendable {
     case mustDoDone, recoveries, bossesDefeated, clearDays, streak
     // Where the proof came from.
     case autoDone, runQuests, stepQuests, mindfulQuests, calendarQuests, reminderQuests
+    // Workouts recorded in Apple Health, all time, by type.
+    case workouts, cyclingWorkouts, swimWorkouts, danceWorkouts, martialArtsWorkouts
 }
 
 /// The current value of every measure. Missing keys count as 0.
@@ -109,6 +111,12 @@ public enum SkillCatalog {
         skill("calmMind", "Calm Mind", "Mindful sessions proven by Apple Health.", .mindfulQuests, Curve.habit, "moon", .rare),
         skill("strategist", "Strategist", "Calendar events turned into finished quests.", .calendarQuests, Curve.habit, "calendar", .common),
         skill("looseEnds", "Loose Ends", "Reminders finished as quests.", .reminderQuests, Curve.habit, "bell", .common),
+        // Workouts in Apple Health (Garmin and other watches sync into it).
+        skill("trainingRegimen", "Training Regimen", "Every workout in Apple Health.", .workouts, Curve.volume, "dumbbell", .rare),
+        skill("ironWheels", "Iron Wheels", "Cycling workouts.", .cyclingWorkouts, Curve.habit, "bolt", .common),
+        skill("openWater", "Open Water", "Swimming workouts.", .swimWorkouts, Curve.habit, "moon", .common),
+        skill("rhythm", "Rhythm", "Dance workouts.", .danceWorkouts, Curve.habit, "star", .common),
+        skill("wayOfTheFist", "Way of the Fist", "Martial arts, boxing and wrestling workouts.", .martialArtsWorkouts, Curve.habit, "sword", .rare),
     ]
 
     /// Keeps only rows the app can use: a known measure (decoding already

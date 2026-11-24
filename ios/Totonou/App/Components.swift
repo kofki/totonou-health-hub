@@ -9,6 +9,40 @@ enum Radius {
     static let control: CGFloat = 14
 }
 
+/// A soft light around a shape that slowly breathes.
+///
+/// Why not `.shadow` with an animated radius: that recomputes a blur every
+/// frame, for every window on screen, and drops the frame rate. Here the glow
+/// is blurred once into a texture (`drawingGroup`), and the animation only
+/// changes its opacity, which the GPU does almost for free.
+struct GlowLayer<S: Shape>: View {
+    let shape: S
+    var tint: Color = Ink.ai
+    var radius: CGFloat = 18
+    var breathe = true
+    var low: Double = 0.45
+    var high: Double = 0.8
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        shape
+            .stroke(tint, lineWidth: radius * 0.7)
+            .blur(radius: radius)
+            // Room for the blur to spread: the texture is larger than the shape.
+            .padding(radius * 2)
+            .drawingGroup()
+            .padding(-radius * 2)
+            .phaseAnimator(breathe && !reduceMotion ? [low, high] : [(low + high) / 2]) { glow, phase in
+                glow.opacity(phase)
+            } animation: { _ in
+                .easeInOut(duration: 2.4)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+}
+
 /// A card. With `glow` it is the one thing on the screen asking for attention.
 struct SystemPanel<Content: View>: View {
     var tint: Color = Ink.ai
@@ -25,12 +59,9 @@ struct SystemPanel<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Ink.raised, in: shape)
             .overlay(shape.strokeBorder(tint.opacity(glow ? 0.55 : 0.14), lineWidth: 1))
-            // A glowing card breathes. phaseAnimator loops through the listed
-            // values for as long as the view is on screen.
-            .phaseAnimator(glow && !reduceMotion ? [0.0, 1.0] : [0.5]) { panel, phase in
-                panel.shadow(color: glow ? tint.opacity(0.14 + phase * 0.16) : .clear, radius: 16 + phase * 10)
-            } animation: { _ in
-                .easeInOut(duration: 2.6)
+            // A glowing card breathes (see GlowLayer for why it is drawn this way).
+            .background {
+                if glow { GlowLayer(shape: shape, tint: tint, radius: 16, low: 0.2, high: 0.45) }
             }
     }
 }
@@ -303,11 +334,7 @@ struct SystemWindow<Content: View>: View {
         .overlay(frame)
         .overlay(alignment: .topTrailing) { controls.padding(12) }
         .overlay { PixelBits(tint: notice ? tint : .white) }
-        .phaseAnimator(reduceMotion ? [0.5] : [0.0, 1.0]) { window, phase in
-            window.shadow(color: tint.opacity(0.45 + phase * 0.3), radius: 16 + phase * 10)
-        } animation: { _ in
-            .easeInOut(duration: 2.4)
-        }
+        .background { GlowLayer(shape: WindowShape(), tint: tint, radius: 20) }
     }
 
     @ViewBuilder private func header(_ title: String) -> some View {
@@ -387,10 +414,10 @@ struct PixelBits: View {
         GeometryReader { proxy in
             ForEach(Self.bits.indices, id: \.self) { index in
                 let bit = Self.bits[index]
+                // No shadow per square: seven small blurs per window added up.
                 Rectangle()
-                    .fill(tint.opacity(0.85))
+                    .fill(tint.opacity(0.9))
                     .frame(width: bit.size, height: bit.size)
-                    .shadow(color: Ink.ai, radius: 4)
                     .position(x: proxy.size.width * bit.x, y: proxy.size.height * bit.y)
             }
         }

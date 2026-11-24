@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import TotonouCore
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EXERCISE 6 · 実測 · Real data from HealthKit        (async/await, protocols)
@@ -62,6 +63,22 @@ struct HealthKitSignalSource: SignalSource {
         readings[.focusMinutes] = try await mindful
         readings[.sleepHours] = try await sleep
         return readings
+    }
+
+    /// Every workout ever recorded, counted by type. Garmin and other watches
+    /// that sync into Apple Health are included.
+    func workoutCounts() async throws -> [SkillMeasure: Int] {
+        guard Self.wasAsked, HKHealthStore.isHealthDataAvailable() else { return [:] }
+        let query = HKSampleQueryDescriptor(predicates: [.workout()], sortDescriptors: [])
+        let types = try await query.result(for: Self.store).map(\.workoutActivityType)
+        func count(_ kinds: Set<HKWorkoutActivityType>) -> Int { types.filter(kinds.contains).count }
+        return [
+            .workouts: types.count,
+            .cyclingWorkouts: count([.cycling, .handCycling]),
+            .swimWorkouts: count([.swimming]),
+            .danceWorkouts: count([.socialDance, .cardioDance]),
+            .martialArtsWorkouts: count([.martialArts, .boxing, .kickboxing, .wrestling]),
+        ]
     }
 
     private static func sum(_ id: HKQuantityTypeIdentifier, unit: HKUnit, from start: Date, to end: Date) async throws -> Double {

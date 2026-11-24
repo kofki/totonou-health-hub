@@ -85,6 +85,10 @@ struct HunterFigure: View {
             .fill(tint)
             .scaleEffect(x: 0.62, y: 0.9)
             .blur(radius: 26)
+            // Blur once into a texture, then only fade it (see GlowLayer).
+            .padding(52)
+            .drawingGroup()
+            .padding(-52)
             // phaseAnimator loops through the listed values for as long as the
             // view is on screen. One value means it stays put.
             .phaseAnimator(reduceMotion ? [0.5] : [0.0, 1.0]) { content, phase in

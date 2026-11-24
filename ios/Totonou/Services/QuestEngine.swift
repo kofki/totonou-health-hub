@@ -500,6 +500,15 @@ final class QuestEngine {
         defer { isSyncing = false }
         guard let readings = try? await signals.latest() else { return }
         self.readings = readings
+        // Workout counts are all-time totals: stored as they are, never added up.
+        if let counts = try? await signals.workoutCounts(), !counts.isEmpty {
+            player.workouts = counts[.workouts] ?? player.workouts
+            player.cyclingWorkouts = counts[.cyclingWorkouts] ?? player.cyclingWorkouts
+            player.swimWorkouts = counts[.swimWorkouts] ?? player.swimWorkouts
+            player.danceWorkouts = counts[.danceWorkouts] ?? player.danceWorkouts
+            player.martialArtsWorkouts = counts[.martialArtsWorkouts] ?? player.martialArtsWorkouts
+            checkSkills(player, now: .now)
+        }
         for quest in quests where quest.isOpen {
             guard let raw = quest.signalKey, let key = SignalKey(rawValue: raw),
                   let target = quest.target, let value = readings[key] else { continue }
