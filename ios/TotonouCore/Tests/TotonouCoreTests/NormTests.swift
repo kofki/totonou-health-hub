@@ -62,3 +62,20 @@ import Testing
         #expect(bench.athletePercentile(of: 1.5)! < bench.percentile(of: 1.5))
     }
 }
+
+@Suite struct TestNormTests {
+    @Test func aPerfectReflectionScoreIsNearTheTopTenth() {
+        let reflection = NormCatalog.norm("reflection")!
+        #expect(reflection.percentile(of: 3) > 88)
+        #expect(reflection.percentile(of: 0) < 20)
+    }
+
+    @Test func iqFollowsTheScale() {
+        #expect(NormCatalog.norm("iq")!.percentile(of: 100) == 50)
+    }
+
+    @Test func fasterReactionBeatsMorePeople() {
+        let reaction = NormCatalog.norm("reactionMs")!
+        #expect(reaction.percentile(of: 230) > reaction.percentile(of: 300))
+    }
+}

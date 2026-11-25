@@ -6,7 +6,7 @@ import TotonouCore
 /// What you enter yourself for the strength benchmarks. Nothing else in the
 /// app knows your lifts, so these are the only numbers here that are typed in.
 enum LiftRecord: String, CaseIterable, Identifiable {
-    case age, bodyWeight, bench, squat, deadlift, pushUps
+    case age, bodyWeight, bench, squat, deadlift, pushUps, verticalJump, iq
 
     var id: String { rawValue }
 
@@ -18,6 +18,8 @@ enum LiftRecord: String, CaseIterable, Identifiable {
         case .squat: "Back squat, 1 rep max"
         case .deadlift: "Deadlift, 1 rep max"
         case .pushUps: "Push-ups in one set"
+        case .verticalJump: "Vertical jump"
+        case .iq: "IQ, from a real test"
         }
     }
 
@@ -25,6 +27,8 @@ enum LiftRecord: String, CaseIterable, Identifiable {
         switch self {
         case .age: "years"
         case .pushUps: "reps"
+        case .verticalJump: "cm"
+        case .iq: "points"
         default: "kg"
         }
     }
@@ -96,6 +100,7 @@ struct BenchmarksSection: View {
                 .padding(.vertical, 6)
             }
             .buttonStyle(PressStyle())
+            TestsRow(player: player)
             Text("No food benchmark yet: nothing records what you eat.").caption(size: 13)
         }
         .task { averageSteps = await HealthVitalsSource.averageSteps() }
@@ -151,6 +156,16 @@ struct BenchmarksSection: View {
             }
         }
         add("pushUps", player.lifts[LiftRecord.pushUps.rawValue]) { "\(Int($0)) reps" }
+        add("verticalJump", player.lifts[LiftRecord.verticalJump.rawValue]) { "\(Int($0)) cm" }
+        add("iq", player.lifts[LiftRecord.iq.rawValue]) { "\(Int($0))" }
+        // The in-app tests (MindTests.swift).
+        add("reactionMs", player.lifts[TestRecord.reaction.key]) { "\(Int($0)) ms" }
+        add("digitSpan", player.lifts[TestRecord.memory.key]) { "\(Int($0)) digits" }
+        // A reflection score of 0 is a real result, so it may not be skipped as "missing".
+        if let score = player.lifts[TestRecord.reflection.key], let norm = NormCatalog.norm("reflection") {
+            list.append(Standing(norm: norm, value: score, shown: "\(Int(score)) of 3"))
+        }
+        add("charismaScore", player.lifts[TestRecord.charisma.key]) { String(format: "%.1f of 5", $0) }
         return list
     }
 }
@@ -343,7 +358,7 @@ private struct CharacterComparison: View {
                 legend(Ink.mute, other.name)
             }
             ForEach(Stat.allCases) { stat in row(stat) }
-            Text("\(other.name)'s numbers are guesses for fun, not measurements. Yours come from your benchmarks; Agility, Intelligence, Wisdom and Charisma have no measure yet.")
+            Text("\(other.name)'s numbers are guesses for fun, not measurements. Yours come from your benchmarks; a stat shows – until a test or a number measures it (see Tests below).")
                 .caption(size: 13)
         }
     }

@@ -15,6 +15,9 @@ public struct Norm: Identifiable, Sendable, Equatable {
         case heart = "Heart"
         case recovery = "Recovery"
         case strength = "Strength"
+        case agility = "Agility"
+        case mind = "Mind"
+        case people = "People"
         case habits = "Habits"
     }
 

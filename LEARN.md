@@ -34,6 +34,7 @@ the same idea already working somewhere else in the project.
 | 22 | Shared arcs label | `ios/Totonou/Exercises/Exercise22_SharedArcsLabel.swift` | A daily quest that also counts for other arcs says "Also for Winter Arc and Founder" on the Arcs screen (now nothing) | `Services/ClaudeChanges.swift` → `ClaudeActivity.message` |
 | 23 | Played label | `ios/Totonou/Exercises/Exercise23_PlayedLabel.swift` | Sport skills say how long you have played, "2 h 15 min so far." (now only the description) | `Features/Rewards/RewardViews.swift` → `SkillRow` |
 | 24 | Standing label | `ios/Totonou/Exercises/Exercise24_StandingLabel.swift` | Coach benchmarks read like a ranking, "Top 28%" or "Bottom 30%" (now "Beats 72%") | `Features/Coach/BenchmarksView.swift` → `TrackLine` |
+| 25 | Median time | `ios/Totonou/Exercises/Exercise25_MedianTime.swift` | The reaction test keeps the middle of five taps, so one slow tap does not count (now the average) | `Features/Coach/MindTests.swift` → `ReactionTest` |
 
 Exercises 8 and 9 are short and visual. They fit well between 3 and 4, once you
 are comfortable with the Xcode canvas.
