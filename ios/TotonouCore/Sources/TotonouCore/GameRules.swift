@@ -19,29 +19,41 @@ public enum Stat: String, CaseIterable, Codable, Sendable, Identifiable {
     public var title: String { rawValue.capitalized }
 }
 
-/// Difficulty rank, E (trivial) to S (brutal). Also used as the hunter rank.
+/// Difficulty rank, E (trivial) to S (brutal), and the human rank.
+///
+/// F- is a human rank only: everyone starts there and leaves it at level 10.
+/// No quest is ever F-, so the quest tables below give it E's values.
 public enum Rank: String, CaseIterable, Codable, Sendable, Comparable {
-    case e = "E", d = "D", c = "C", b = "B", a = "A", s = "S"
+    case f = "F-", e = "E", d = "D", c = "C", b = "B", a = "A", s = "S"
 
     private var order: Int { Rank.allCases.firstIndex(of: self)! }
+
+    /// The ranks a quest can have, E to S.
+    public static let questRanks: [Rank] = [.e, .d, .c, .b, .a, .s]
+
+    /// Position among quest ranks; F- counts as E.
+    private var questOrder: Int { max(order - 1, 0) }
 
     public static func < (lhs: Rank, rhs: Rank) -> Bool { lhs.order < rhs.order }
 
     /// XP for finishing a quest of this rank.
-    public var xp: Int { [10, 20, 35, 60, 100, 200][order] }
+    public var xp: Int { [10, 20, 35, 60, 100, 200][questOrder] }
 
     /// Stat points for finishing a quest of this rank.
-    public var statPoints: Int { order + 1 }
+    public var statPoints: Int { questOrder + 1 }
 
     /// Minutes of social-app time a quest of this rank unlocks.
-    public var earnedMinutes: Int { [5, 10, 15, 20, 30, 45][order] }
+    public var earnedMinutes: Int { [5, 10, 15, 20, 30, 45][questOrder] }
 
     /// The difficulty in a word, shown next to the rank letter.
     public var difficulty: String {
-        ["Trivial", "Easy", "Normal", "Hard", "Elite", "Brutal"][order]
+        ["Trivial", "Easy", "Normal", "Hard", "Elite", "Brutal"][questOrder]
     }
 
-    /// Hunter rank for a character level: a new rank every 10 levels.
+    /// "E-Rank", or "F- Rank" so the minus does not run into the dash.
+    public var label: String { self == .f ? "F- Rank" : "\(rawValue)-Rank" }
+
+    /// Human rank for a character level: F- until level 10, then a new rank every 10 levels.
     public static func forLevel(_ level: Int) -> Rank {
         let index = min(max(level, 1) / 10, Rank.allCases.count - 1)
         return Rank.allCases[index]

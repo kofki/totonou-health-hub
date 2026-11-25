@@ -68,7 +68,7 @@ struct QuestWidgetView: View {
                     Text("\(snapshot.streak)").font(.number(34, weight: .bold)).foregroundStyle(Ink.shu)
                     Text("days").caption(size: 11)
                     Spacer(minLength: 0)
-                    Text("\(Rank.forLevel(snapshot.level).rawValue)-Rank").font(.number(15, weight: .bold))
+                    Text(Rank.forLevel(snapshot.level).label).font(.number(15, weight: .bold))
                         .foregroundStyle(Rank.forLevel(snapshot.level).tint)
                 }
                 .frame(width: 96, alignment: .leading)

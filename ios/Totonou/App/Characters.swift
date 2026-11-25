@@ -4,7 +4,7 @@ import TotonouCore
 // The cast. Four figures, all drawn in code on a 100×100 grid with the same
 // hairline strokes as the rest of the app:
 //
-//   HunterFigure   you, on Status. The aura grows with your rank.
+//   HumanFigure    you, on Status. The aura grows with your rank.
 //   OniMask        a boss, on Arcs. Its eyes dim as its HP drops.
 //   KitsuneMask    the coach, on Coach.
 //   Daruma         an arc's goal, on Arcs. The second eye fills in as the arc
@@ -25,13 +25,13 @@ func hairline(_ side: CGFloat, _ weight: CGFloat = 1) -> StrokeStyle {
     StrokeStyle(lineWidth: max(1, side / 90) * weight, lineCap: .round, lineJoin: .round)
 }
 
-// MARK: Hunter
+// MARK: Human
 
-struct HunterFigure: View {
+struct HumanFigure: View {
     let rank: Rank
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// 0 for E rank up to 1 for S rank.
+    /// 0 for F- rank up to 1 for S rank.
     private var power: Double {
         Double(Rank.allCases.firstIndex(of: rank) ?? 0) / Double(Rank.allCases.count - 1)
     }
@@ -77,7 +77,7 @@ struct HunterFigure: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .aspectRatio(1, contentMode: .fit)
-        .accessibilityLabel("\(rank.rawValue) rank hunter")
+        .accessibilityLabel("\(rank.rawValue) rank human")
     }
 
     private var aura: some View {
@@ -349,9 +349,9 @@ struct Daruma: View {
 #Preview("Cast") {
     VStack(spacing: 30) {
         HStack(spacing: 24) {
-            HunterFigure(rank: .e)
-            HunterFigure(rank: .b)
-            HunterFigure(rank: .s)
+            HumanFigure(rank: .f)
+            HumanFigure(rank: .b)
+            HumanFigure(rank: .s)
         }
         HStack(spacing: 24) {
             OniMask(hp: 1)

@@ -33,9 +33,16 @@ import Testing
         #expect(xp == xp.sorted())
     }
 
-    @Test func hunterRankFollowsLevel() {
-        #expect(Rank.forLevel(1) == .e)
-        #expect(Rank.forLevel(10) == .d)
+    @Test func noQuestIsFMinus() {
+        #expect(!Rank.questRanks.contains(.f))
+        #expect(Rank.f.xp == Rank.e.xp)
+    }
+
+    @Test func humanRankFollowsLevel() {
+        #expect(Rank.forLevel(1) == .f)
+        #expect(Rank.forLevel(9) == .f)
+        #expect(Rank.forLevel(10) == .e)
+        #expect(Rank.forLevel(20) == .d)
         #expect(Rank.forLevel(999) == .s)
     }
 }

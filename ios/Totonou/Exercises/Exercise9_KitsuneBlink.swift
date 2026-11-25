@@ -17,7 +17,7 @@ import TotonouCore
 //
 // Two ways to do it — pick one, then try the other
 //   A. `.phaseAnimator([...])`: list the phases (open, shut, open-and-wait) and
-//      give each phase its own animation. Finished examples: the hunter's aura
+//      give each phase its own animation. Finished examples: the human's aura
 //      and the oni's eyes in App/Characters.swift.
 //   B. `@State` plus `.task { while !Task.isCancelled { ... } }` with
 //      `try? await Task.sleep(for:)` and `withAnimation`.

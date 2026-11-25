@@ -18,9 +18,9 @@ struct KitsuneSpirit: View {
     var tint: Color = Ink.ai
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// Tails for a hunter rank: one at E, nine at S.
+    /// Tails for a human rank: one at F- and E, nine at S.
     static func tails(for rank: Rank) -> Int {
-        [1, 2, 3, 5, 7, 9][Rank.allCases.firstIndex(of: rank) ?? 0]
+        [1, 1, 2, 3, 5, 7, 9][Rank.allCases.firstIndex(of: rank) ?? 0]
     }
 
     var body: some View {

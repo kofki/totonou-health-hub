@@ -37,7 +37,11 @@ enum Bootstrap {
     static func start(_ context: ModelContext, now: Date = .now) {
         clearSeedDataOnce(context)
         if ((try? context.fetchCount(FetchDescriptor<Player>())) ?? 0) == 0 {
-            context.insert(Player(name: "Hunter"))
+            context.insert(Player(name: "Human"))
+        }
+        // Older installs were created with the default name "Hunter".
+        if let player = try? context.fetch(FetchDescriptor<Player>()).first, player.name == "Hunter" {
+            player.name = "Human"
         }
         rollDailyQuests(context, now: now)
     }

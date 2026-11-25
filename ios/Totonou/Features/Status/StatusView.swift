@@ -123,7 +123,7 @@ struct StatusView: View {
         return VStack(spacing: 14) {
             ZStack {
                 EnsoRing(progress: progress.fraction)
-                HunterFigure(rank: rank).padding(26)
+                HumanFigure(rank: rank).padding(26)
             }
             .frame(width: 200, height: 200)
         }

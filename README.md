@@ -9,7 +9,7 @@ quest and everything locks until you recover.
 ## Status
 
 The app runs on what you create. There is no sample data: a new install is a
-level 1 hunter with no arc, and Today asks you to write one.
+level 1 human with no arc, and Today asks you to write one.
 
 | Piece | State |
 |---|---|
@@ -105,7 +105,7 @@ Nothing is an image file except the app icon. All of it is drawn in SwiftUI:
 
 - **Icons** — `ios/Totonou/App/Glyphs.swift`. Twenty-two stroke icons on a 24-point
   grid: `GlyphIcon(.moon)`. Add a case to `Glyph` to add one.
-- **Characters** — `ios/Totonou/App/Characters.swift`. The hooded hunter (Status;
+- **Characters** — `ios/Totonou/App/Characters.swift`. The hooded human (Status;
   aura grows with rank), the oni mask (bosses; eyes dim with HP), the kitsune mask
   (coach) and the daruma (arcs; second eye fills as the arc runs, tap it).
 - **Motion** — `ios/Totonou/App/Motion.swift`. Staggered section entrances, numbers

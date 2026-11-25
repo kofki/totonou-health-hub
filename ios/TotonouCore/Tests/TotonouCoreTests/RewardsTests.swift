@@ -33,7 +33,8 @@ private func day(_ offset: Int) -> Date {
         #expect(reward.isRankUp)
         #expect(reward.freezes == 1)
         #expect(reward.passes == 1)
-        #expect(!Rewards.forLevel(60).isRankUp)
+        #expect(Rewards.forLevel(60).isRankUp)
+        #expect(!Rewards.forLevel(70).isRankUp)
     }
 
     @Test func crossingSeveralLevelsPaysEachOne() {
@@ -137,7 +138,7 @@ private func day(_ offset: Int) -> Date {
     }
 
     @Test func thresholds() {
-        let facts = AchievementFacts(questsDone: 100, autoDone: 1, streak: 7, level: 20)
+        let facts = AchievementFacts(questsDone: 100, autoDone: 1, streak: 7, level: 30)
         let earned = facts.earned
         #expect(earned.isSuperset(of: [.firstQuest, .quests100, .firstAuto, .streak7, .level10, .rankC]))
         #expect(!earned.contains(.streak30))

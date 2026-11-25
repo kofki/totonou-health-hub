@@ -80,7 +80,7 @@ struct TodayView: View {
     private func hero(_ player: Player) -> some View {
         let progress = player.progress
         return HStack(spacing: 16) {
-            HunterFigure(rank: Rank.forLevel(progress.level))
+            HumanFigure(rank: Rank.forLevel(progress.level))
                 .frame(width: 96, height: 96)
             VStack(alignment: .leading, spacing: 8) {
                 Text("\(Date.now.greeting), \(player.name)").caption(Ink.ai, size: 15)
@@ -103,7 +103,7 @@ struct TodayView: View {
 
     /// Shown until the first arc exists. Without an arc there are no quests.
     private var firstArc: some View {
-        SystemWindow(title: "Welcome, hunter") {
+        SystemWindow(title: "Welcome, human") {
             Text("Write your first arc.").font(.text(22, weight: .bold))
             Text("Describe the next chapter of your life. Your daily quests come from it.")
                 .caption(.white.opacity(0.85), size: 16)

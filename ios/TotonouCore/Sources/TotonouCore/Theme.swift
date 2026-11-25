@@ -81,9 +81,10 @@ public extension View {
 
 public extension Rank {
     /// Each difficulty has its own colour, from grey (trivial) to red (brutal).
+    /// F- shares E's grey: it is a starting point, not a difficulty.
     var tint: Color {
         switch self {
-        case .e: Ink.mute
+        case .f, .e: Ink.mute
         case .d: Ink.jade
         case .c: Ink.ai
         case .b: Ink.violet

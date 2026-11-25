@@ -47,7 +47,7 @@ struct StatusWindow: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     RankBadge(rank: Rank.forLevel(progress.level), size: 28)
-                    Text("\(Rank.forLevel(progress.level).rawValue)-Rank").font(.text(16, weight: .semibold))
+                    Text(Rank.forLevel(progress.level).label).font(.text(16, weight: .semibold))
                     Spacer()
                     Text("\(progress.needed - progress.into) XP to next level").font(.text(14, weight: .medium))
                 }

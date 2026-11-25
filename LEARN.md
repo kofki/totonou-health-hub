@@ -18,7 +18,7 @@ the same idea already working somewhere else in the project.
 | 6 | ~~HealthKit source~~ handed over, solved by Claude | `ios/Totonou/Exercises/Exercise6_HealthKitSignalSource.swift` | Real steps, runs and sleep complete quests | `Services/Signals.swift`, `Services/QuestEngine.swift` |
 | 7 | Live widget: steps 1–3 handed over and solved; step 4 (a second widget) is still yours | `ios/TotonouWidget/TotonouWidget.swift` | The widget shows your real next quest | `TotonouCore/.../Shared.swift` → `WidgetSnapshot` |
 | 8 | Flame icon | `ios/Totonou/Exercises/Exercise8_FlameGlyph.swift` | The icon beside your streak on Today (now a diamond) | `App/Glyphs.swift` → `.mountain`, `.heart`, `.moon` |
-| 9 | Coach blink | `ios/Totonou/Exercises/Exercise9_KitsuneBlink.swift` | The fox on Coach blinks | `App/Characters.swift` → the hunter's aura, the oni's eyes |
+| 9 | Coach blink | `ios/Totonou/Exercises/Exercise9_KitsuneBlink.swift` | The fox on Coach blinks | `App/Characters.swift` → the human's aura, the oni's eyes |
 | 10 | Restore from the cloud | `ios/Totonou/Services/SupabaseCloudStore.swift` | Progress saved in Supabase comes back on launch | the two `save` functions in the same file |
 | 11 | Fold the Done list | `ios/Totonou/Exercises/Exercise11_DoneSection.swift` | Tapping "Done" on Today hides finished quests | `Features/Today/TodayView.swift` → `selected` |
 | 13 | Achievement badge | `ios/Totonou/Exercises/Exercise13_AchievementBadge.swift` | The achievement grid on Rewards shows earned and locked badges | `Features/Rewards/RewardViews.swift` → `RewardCard` |
@@ -54,6 +54,6 @@ Run one exercise at a time with `swift test --filter Overall`, `--filter NextMil
 4. `Totonou/App/Components.swift` — small reusable views, `Shape`, `ButtonStyle`, generics with `@ViewBuilder`.
 5. `Totonou/App/Glyphs.swift` — drawing with `Path`. Open its preview to see every icon.
 6. `Totonou/App/Motion.swift` — every animation helper: entrances, counting numbers, the shake, particles.
-7. `Totonou/App/Characters.swift` — the hunter, oni, kitsune and daruma, built from the two files above.
+7. `Totonou/App/Characters.swift` — the human, oni, kitsune and daruma, built from the two files above.
 8. `Totonou/Features/Today/TodayView.swift` — `@Query`, `@Environment`, composing a screen.
 9. `Totonou/App/TotonouApp.swift` — how the app starts and where the database comes from.

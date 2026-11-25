@@ -15,7 +15,7 @@ public struct LevelReward: Equatable, Sendable {
     public let minutes: Int
     /// A title you can wear, every 5 levels.
     public let title: String?
-    /// Every 10 levels the hunter rank changes (E → D → … → S).
+    /// Every 10 levels the human rank changes (F- → E → D → … → S).
     public let isRankUp: Bool
     /// Rank-ups also give a streak freeze and an emergency pass.
     public let freezes: Int
@@ -30,7 +30,7 @@ public enum Rewards {
     public static let maxFreezes = 2
 
     public static func forLevel(_ level: Int) -> LevelReward {
-        let rankUp = level % 10 == 0 && level <= 50
+        let rankUp = level % 10 == 0 && level <= 60
         return LevelReward(
             level: level,
             statPoints: 1,
@@ -61,7 +61,7 @@ public enum Rewards {
 /// Titles earned every 5 levels. Worn next to your name.
 public enum Titles {
     public static let byLevel: [Int: String] = [
-        5: "Awakened", 10: "Hunter", 15: "Early Riser", 20: "Iron Will", 25: "Unbroken",
+        5: "Awakened", 10: "Seeker", 15: "Early Riser", 20: "Iron Will", 25: "Unbroken",
         30: "Pathfinder", 35: "Storm Runner", 40: "Quiet Mind", 45: "Mountain Heart", 50: "Totonoi",
     ]
 
@@ -183,7 +183,7 @@ public enum Achievement: String, CaseIterable, Codable, Sendable {
         case .quests100: "Finish 100 quests."
         case .mustDo10: "Finish 10 must-do quests."
         case .level10: "Reach level 10."
-        case .rankC: "Reach C-Rank (level 20)."
+        case .rankC: "Reach C-Rank (level 30)."
         }
     }
 }
@@ -226,7 +226,7 @@ public struct AchievementFacts: Equatable, Sendable {
         if questsDone >= 100 { set.insert(.quests100) }
         if mustDoDone >= 10 { set.insert(.mustDo10) }
         if level >= 10 { set.insert(.level10) }
-        if level >= 20 { set.insert(.rankC) }
+        if level >= 30 { set.insert(.rankC) }
         return set
     }
 }
