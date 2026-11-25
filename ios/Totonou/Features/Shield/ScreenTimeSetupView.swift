@@ -48,6 +48,16 @@ struct ScreenTimeSetupView: View {
                         }
                     }
 
+                    // What iOS reports right now, to see why something does not lock.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Permission: \(lock.permissionText)").caption()
+                        Text("Lock switched on: \(lock.isOn ? "yes" : "no")").caption()
+                        Text("Locked by iOS now: \(lock.shieldedText)").caption()
+                        if let problem = lock.problem {
+                            Text(problem).caption(Ink.shu)
+                        }
+                    }
+
                     Button("Done") { dismiss() }
                         .buttonStyle(SystemButtonStyle(tint: Ink.mute))
                 }
@@ -56,6 +66,8 @@ struct ScreenTimeSetupView: View {
             .scrollIndicators(.hidden)
         }
         .foregroundStyle(Ink.washi)
+        // Read the permission again when the screen opens: it may have settled since launch.
+        .task { lock.refresh() }
         // Apple's own picker. The app gets back tokens, never the app names.
         .familyActivityPicker(isPresented: $picking, selection: $lock.selection)
     }

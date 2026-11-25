@@ -30,6 +30,32 @@ final class ScreenTimeLock {
     static let usageSteps: [Int] = Array(stride(from: 15, through: 240, by: 15)) + [300, 360, 420, 480]
 
     private(set) var isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+    /// What went wrong last, in words, for the setup screen. Nil when all is well.
+    private(set) var problem: String?
+
+    /// Screen Time can report "not decided" for a moment after launch, so the
+    /// permission is read again before anything depends on it.
+    private func recheck() {
+        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+    }
+
+    /// For the setup screen: what iOS says right now.
+    var permissionText: String {
+        switch AuthorizationCenter.shared.authorizationStatus {
+        case .approved: "allowed"
+        case .denied: "denied (Settings → Screen Time → Apps with Screen Time Access)"
+        case .notDetermined: "not asked yet"
+        @unknown default: "unknown"
+        }
+    }
+
+    /// How many apps and categories the lock is applying right now, read back from iOS.
+    var shieldedText: String {
+        let apps = store.shield.applications?.count ?? 0
+        let groups: Int
+        if case .specific(let tokens, _) = store.shield.applicationCategories { groups = tokens.count } else { groups = 0 }
+        return "\(apps) app\(apps == 1 ? "" : "s"), \(groups) categor\(groups == 1 ? "y" : "ies")"
+    }
     private(set) var isOn: Bool
     private(set) var unlockedUntil: Date?
     /// When the current unlock started, for a countdown bar.
@@ -52,8 +78,13 @@ final class ScreenTimeLock {
 
     /// Shows Apple's Screen Time permission sheet. Needs Face ID or the passcode.
     func authorize() async {
-        try? await AuthorizationCenter.shared.requestAuthorization(for: .individual)
-        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        do {
+            try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
+            problem = nil
+        } catch {
+            problem = "Screen Time permission failed: \(error.localizedDescription)"
+        }
+        recheck()
         trackUsage()
     }
 
@@ -61,6 +92,7 @@ final class ScreenTimeLock {
     /// are locked. Midnight to midnight, every day; the monitor writes the
     /// running total (TotonouMonitor.swift).
     func trackUsage() {
+        recheck()
         guard isAuthorized, hasApps else {
             center.stopMonitoring([usageActivity])
             return
@@ -77,7 +109,11 @@ final class ScreenTimeLock {
                                          intervalEnd: DateComponents(hour: 23, minute: 59),
                                          repeats: true)
         center.stopMonitoring([usageActivity])
-        try? center.startMonitoring(usageActivity, during: day, events: events)
+        do {
+            try center.startMonitoring(usageActivity, during: day, events: events)
+        } catch {
+            problem = "Usage tracking did not start: \(error.localizedDescription)"
+        }
     }
 
     /// Minutes the chosen apps were used today, in 15-minute steps (at least
@@ -96,6 +132,8 @@ final class ScreenTimeLock {
     }
 
     func setOn(_ on: Bool) {
+        recheck()
+        if on && !isAuthorized { problem = "Screen Time is not allowed yet. Tap Allow Screen Time first." }
         isOn = on && isAuthorized
         defaults.set(isOn, forKey: "lockOn")
         if isOn { lock() } else { open() }
@@ -118,6 +156,7 @@ final class ScreenTimeLock {
             try center.startMonitoring(unlockActivity, during: schedule)
         } catch {
             // Without the window nothing would lock again, so keep the apps locked.
+            problem = "Could not schedule the re-lock, so the apps stay locked: \(error.localizedDescription)"
             return
         }
         open()
@@ -128,7 +167,7 @@ final class ScreenTimeLock {
 
     /// On every launch: lock again if an unlock ran out while the extension did not.
     func refresh(now: Date = .now) {
-        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        recheck()
         guard isOn else { return }
         if let until = unlockedUntil, until > now { return }
         unlockedUntil = nil
@@ -141,6 +180,11 @@ final class ScreenTimeLock {
         store.shield.applications = selection.applicationTokens.isEmpty ? nil : selection.applicationTokens
         store.shield.applicationCategories = selection.categoryTokens.isEmpty ? nil : .specific(selection.categoryTokens)
         store.shield.webDomains = selection.webDomainTokens.isEmpty ? nil : selection.webDomainTokens
+        if hasApps && store.shield.applications == nil && store.shield.applicationCategories == nil && store.shield.webDomains == nil {
+            problem = "iOS did not accept the lock. Check that Family Controls is in Signing & Capabilities."
+        } else {
+            problem = nil
+        }
     }
 
     private func open() {
