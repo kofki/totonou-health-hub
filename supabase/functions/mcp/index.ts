@@ -363,19 +363,18 @@ function list(value: unknown, name: string, min: number, max: number): unknown[]
 
 type Change = { kind: string; payload: Json };
 
-/** What the phone shows for a batch of changes. */
+/** What the phone shows for a batch of changes: "Update" and what it was about. */
 function pushText(changes: Change[]): [string, string] {
   if (changes.length === 1 && changes[0].kind === "coach_message") {
     return ["Coach", String(changes[0].payload.text)];
   }
-  const names: Record<string, string> = {
-    add_quest: "quest", add_daily_quest: "daily quest", add_objective: "objective",
-    add_arc: "arc", end_arc: "arc ended", remove_quest: "quest removed", coach_message: "coach note",
-  };
-  const titles = changes.map((c) => c.payload.title ?? c.payload.arc).filter(Boolean).slice(0, 3).join(", ");
-  const kinds = [...new Set(changes.map((c) => names[c.kind]))].join(", ");
-  return ["Claude changed your plan", `${changes.length} change${changes.length === 1 ? "" : "s"} (${kinds})` +
-    (titles ? `: ${titles}` : "") + ". Open Totonou to apply."];
+  // The arc when there is one, else the item itself; each named once.
+  const subjects = [...new Set(changes.filter((c) => c.kind !== "coach_message")
+    .map((c) => String(c.payload.arc ?? c.payload.title ?? "")).filter(Boolean))];
+  if (subjects.length === 0) return ["Update", "There has been an update to your plan."];
+  const named = subjects.length <= 2 ? subjects.join(" and ")
+    : `${subjects.slice(0, 2).join(", ")} and ${subjects.length - 2} more`;
+  return ["Update", `There has been an update for ${named}.`];
 }
 
 async function queue(db: SupabaseClient, userID: string, changes: Change[]): Promise<string> {

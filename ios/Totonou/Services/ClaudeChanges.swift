@@ -30,6 +30,7 @@ extension QuestEngine {
         defer { isApplyingClaude = false }
         guard let changes = try? await link.pendingChanges(), !changes.isEmpty else { return }
         var applied = 0
+        var subjects: [String] = []
         for change in changes {
             let result = ClaudeApplier(context: context, engine: self, now: now).apply(change)
             // Save before stamping: if the app is closed in between, the worst
@@ -37,21 +38,39 @@ extension QuestEngine {
             // checks below turn into a no-op next time.
             try? context.save()
             try? await link.markApplied(change.id, result: result)
-            if result.hasPrefix("applied") { applied += 1 }
+            if result.hasPrefix("applied") {
+                applied += 1
+                // What the update was about: the arc when there is one, else the item itself.
+                if change.kind != .coachMessage, let subject = change.payload.arc ?? change.payload.title,
+                   !subjects.contains(subject) {
+                    subjects.append(subject)
+                }
+            }
         }
         if applied > 0 {
-            // Added to today's count, so a second batch later today does not hide the first.
-            let earlier = claudeApplied.flatMap { Calendar.current.isDate($0.at, inSameDayAs: now) ? $0.count : nil } ?? 0
-            claudeApplied = ClaudeActivity(count: earlier + applied, at: now)
+            // Added to today's, so a second batch later today does not hide the first.
+            let earlier = claudeApplied.flatMap { Calendar.current.isDate($0.at, inSameDayAs: now) ? $0 : nil }
+            let all = (earlier?.subjects ?? []) + subjects.filter { !(earlier?.subjects ?? []).contains($0) }
+            claudeApplied = ClaudeActivity(count: (earlier?.count ?? 0) + applied, subjects: all, at: now)
         }
         await shareWithClaude(context: context, now: now)
     }
 }
 
-/// How many of Claude's changes were applied, and when. Shown on Today.
+/// How many of Claude's changes were applied, what they were about, and when. Shown on Today.
 struct ClaudeActivity: Equatable, Sendable {
     let count: Int
+    /// Arc titles, or quest and objective titles when there was no arc.
+    let subjects: [String]
     let at: Date
+
+    /// "There has been an update for Founder and Healthy body."
+    var message: String {
+        guard !subjects.isEmpty else { return "There has been an update to your plan." }
+        let named = subjects.count <= 2 ? subjects.joined(separator: " and ")
+            : subjects.prefix(2).joined(separator: ", ") + " and \(subjects.count - 2) more"
+        return "There has been an update for \(named)."
+    }
 }
 
 /// Where the latest coach message from Claude is kept. Read by CoachView.

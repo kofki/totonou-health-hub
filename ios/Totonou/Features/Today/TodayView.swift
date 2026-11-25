@@ -42,8 +42,8 @@ struct TodayView: View {
                     if locked { penalty }
                     if let activity = engine.claudeApplied, Calendar.current.isDateInToday(activity.at) {
                         // A game message, so a system window: Claude changed your plan.
-                        SystemWindow(title: "Claude") {
-                            Text(activity.count == 1 ? "Claude changed your plan once." : "Claude changed your plan \(activity.count) times.")
+                        SystemWindow(title: "Update") {
+                            Text(activity.message)
                                 .font(.text(17, weight: .medium))
                         }
                     }
