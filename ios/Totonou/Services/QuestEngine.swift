@@ -470,7 +470,7 @@ final class QuestEngine {
     /// Level-up rewards, titles and achievements already earned are kept.
     /// Unticking a step also unticks its finished quest, which needs all steps.
     func untick(_ quest: Quest, player: Player, now: Date = .now) {
-        guard quest.isDone, let finished = quest.completedAt else { return }
+        guard quest.canUntick, let finished = quest.completedAt else { return }
         if let parent = quest.parent, parent.isDone { untick(parent, player: player, now: now) }
         if quest.isRecovery {
             player.recoveries = max(player.recoveries - 1, 0)

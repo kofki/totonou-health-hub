@@ -201,6 +201,10 @@ final class Quest {
     var completedAt: Date?
     var failedAt: Date?
     var autoCompleted: Bool
+    /// Finished by hand, so it can be unticked. A quest Garmin or Apple Health
+    /// proved stays done: the data said so (owner's rule, 2026-11-25).
+    var canUntick: Bool { isDone && !autoCompleted }
+
     /// What finishing it paid, so unticking can take back exactly that.
     var xpEarned: Int = 0
     var hpHealed: Int = 0

@@ -278,6 +278,7 @@ private struct ClaudeApplier {
                 && at.map { abs(quest.scheduledAt.timeIntervalSince($0)) < 60 } ?? true
         }
         guard let quest = matches.first else { return "skipped: no finished quest called \(title) that day" }
+        guard quest.canUntick else { return "skipped: Garmin or Apple Health proved it, so it stays done" }
         guard let player = try? context.fetch(FetchDescriptor<Player>()).first else { return "skipped: no player" }
         engine.untick(quest, player: player, now: now)
         return "applied"

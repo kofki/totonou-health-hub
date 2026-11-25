@@ -379,8 +379,8 @@ struct QuestRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(PressStyle())
-            .disabled(untick == nil)
-            .accessibilityLabel("Mark \(quest.title) as not done")
+            .disabled(untick == nil || !quest.canUntick)
+            .accessibilityLabel(quest.canUntick ? "Mark \(quest.title) as not done" : "Done, proved by data")
         } else if quest.isBlocked {
             // Waits for its steps: a lock instead of a tick box.
             GlyphIcon(.lock, size: 18, tint: Ink.mute)

@@ -273,7 +273,8 @@ const TOOLS = [
     name: "untick_quest",
     title: "Mark a quest as not done",
     description: "Open a finished quest or step again when it was ticked by mistake or not really done. What it " +
-      "paid (XP, stat points, minutes, HP) is taken back. Only when the user asks for it.",
+      "paid (XP, stat points, minutes, HP) is taken back. Only when the user asks for it. Quests Garmin or Apple " +
+      "Health completed (status \"done (proved by data)\") cannot be unticked.",
     inputSchema: {
       type: "object",
       properties: {
