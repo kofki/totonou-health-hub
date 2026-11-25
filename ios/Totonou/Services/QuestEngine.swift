@@ -302,6 +302,32 @@ final class QuestEngine {
         if done { arc.goalsDone.append(goal) }
     }
 
+    /// Run a finished arc again from today, with its goals, objectives and plan.
+    /// A season gets a fresh 90 days; an objective has no end date again.
+    /// Today's quests from its plan appear straight away.
+    func restart(_ arc: Arc, context: ModelContext, now: Date = .now) {
+        guard !arc.isActive(on: now) else { return }
+        let calendar = Calendar.current
+        arc.startDate = now
+        arc.endDate = arc.kind == .seasonal
+            ? calendar.date(byAdding: .day, value: 90, to: calendar.startOfDay(for: now))!
+            : .distantFuture
+        arc.endedAt = nil
+        Bootstrap.rollDailyQuests(context, now: now)
+    }
+
+    /// Remove a finished arc for good: its objectives and bosses go with it.
+    /// Its finished quests stay in your history, without an arc, and the XP
+    /// they paid is kept. A running arc has to be ended first.
+    func delete(_ arc: Arc, context: ModelContext, now: Date = .now) {
+        guard !arc.isActive(on: now) else { return }
+        for quest in arc.quests where quest.isOpen {
+            if let id = quest.alarmID { alarms.cancel(id: id) }
+            context.delete(quest)
+        }
+        context.delete(arc)
+    }
+
     /// End an arc before its last day, or close an objective you have reached. Its unfinished quests leave Today; the
     /// ones you finished or missed stay as history, and other arcs are untouched.
     func end(_ arc: Arc, context: ModelContext, now: Date = .now) {

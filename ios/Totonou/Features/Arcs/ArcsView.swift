@@ -180,6 +180,7 @@ private struct ArcDetail: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showBossComposer = false
     @State private var confirmEnd = false
+    @State private var confirmDelete = false
 
     var body: some View {
         SheetFrame(title: arc.title) {
@@ -254,7 +255,24 @@ private struct ArcDetail: View {
                 }
                 Button("End arc") { confirmEnd = true }
                     .buttonStyle(SystemButtonStyle(tint: Ink.shu))
+            } else {
+                Button("Restart arc") {
+                    engine.restart(arc, context: context)
+                    dismiss()
+                }
+                .buttonStyle(SystemButtonStyle(filled: true))
+                Button("Delete arc") { confirmDelete = true }
+                    .buttonStyle(SystemButtonStyle(tint: Ink.shu))
             }
+        }
+        // Deleting cannot be undone either.
+        .confirmationDialog("Delete \(arc.title)?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete arc", role: .destructive) {
+                engine.delete(arc, context: context)
+                dismiss()
+            }
+        } message: {
+            Text("The arc, its objectives and bosses are removed. Quests you finished and the XP they paid stay.")
         }
         .sheet(isPresented: $showBossComposer) { BossComposer(arcs: [arc]) }
         // Ending cannot be undone, so ask first.
