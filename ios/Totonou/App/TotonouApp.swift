@@ -12,7 +12,7 @@ struct TotonouApp: App {
 
     init() {
         UNUserNotificationCenter.current().delegate = ReminderPresenter.shared
-        let container = try! ModelContainer(for: Player.self, Quest.self, Arc.self, Boss.self, BossTask.self)
+        let container = try! ModelContainer(for: Player.self, Quest.self, Arc.self, Boss.self, BossTask.self, Objective.self)
         let engine = QuestEngine(cloud: SupabaseConfig.makeStore())
         self.container = container
         _engine = State(initialValue: engine)
@@ -107,11 +107,15 @@ struct RootView: View {
         .sheet(isPresented: $showSpend) { StatSpendView() }
         // Runs again whenever progress changes, so the cloud copy follows along.
         .task(id: backupKey) {
-            guard let player = players.first else { return }
+            // At launch the key changes several times in a row while the day's
+            // quests are made and data loads. A short wait means only the last
+            // change backs up: a newer key cancels this task, and the sleep throws.
+            guard (try? await Task.sleep(for: .seconds(1.5))) != nil, let player = players.first else { return }
             let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
             engine.publishWidget(player: player, quests: today)
-            await engine.refreshReminders(quests: today, plan: arcs.first?.plan ?? [])
+            await engine.refreshReminders(quests: today, plan: arcs.dailyPlan())
             await engine.backUp(player: player, quests: today)
+            await engine.shareWithClaude(context: context)
         }
         .task {
             Bootstrap.start(context)
@@ -135,12 +139,13 @@ struct RootView: View {
         await engine.refreshSkills()
         await engine.importReminders(context: context, player: player)
         await engine.syncInBackground(container: context.container)
+        await engine.applyClaudeChanges(context: context)
     }
 
     /// Changes whenever something worth saving changes.
     private var backupKey: [Int] {
         guard let player = players.first else { return [] }
-        return [player.totalXP, player.bankedMinutes, quests.count, arcs.count,
+        return [player.totalXP, player.bankedMinutes, quests.count, arcs.active().count,
                 quests.filter(\.isDone).count, quests.filter(\.isFailed).count]
     }
 

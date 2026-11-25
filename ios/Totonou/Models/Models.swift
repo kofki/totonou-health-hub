@@ -174,6 +174,10 @@ final class Quest {
     var externalID: String?
     /// The AlarmKit alarm that rings before this quest, if one is set.
     var alarmID: String?
+    /// The objective this quest counts toward: finishing it adds one to that
+    /// objective's tally for the day or week. Optional with a default, so a
+    /// store saved by an older build opens unchanged.
+    var objective: Objective? = nil
 
     init(title: String, stat: Stat, rank: Rank, source: QuestSource = .manual, isCritical: Bool = false,
          isRecovery: Bool = false, scheduledAt: Date, durationMinutes: Int = 15,
@@ -203,6 +207,145 @@ final class Quest {
     var dueAt: Date { scheduledAt.addingTimeInterval(TimeInterval(durationMinutes * 60)) }
 }
 
+/// How often an objective's count starts again from zero.
+enum ObjectivePeriod: String, CaseIterable, Sendable {
+    /// Every day: "3 meals with 30 g of protein".
+    case day
+    /// Every week, Monday to Sunday: "4 strength sessions".
+    case week
+    /// Once, across the whole arc: "Publish 12 posts".
+    case arc
+
+    /// "today", "this week", "in total": how the count is read out.
+    var phrase: String {
+        switch self {
+        case .day: "today"
+        case .week: "this week"
+        case .arc: "in total"
+        }
+    }
+
+    /// "a day", "a week", "": how the target is read out.
+    var rate: String {
+        switch self {
+        case .day: "a day"
+        case .week: "a week"
+        case .arc: "in total"
+        }
+    }
+
+    /// The stretch of time that counts right now. Weeks start on Monday,
+    /// whatever the phone's region, so "this week" means the same everywhere.
+    func window(containing date: Date, arc: Arc?) -> DateInterval {
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2
+        switch self {
+        case .day:
+            return calendar.dateInterval(of: .day, for: date) ?? DateInterval(start: date, duration: 86_400)
+        case .week:
+            return calendar.dateInterval(of: .weekOfYear, for: date) ?? DateInterval(start: date, duration: 7 * 86_400)
+        case .arc:
+            let start = arc.map { calendar.startOfDay(for: $0.startDate) } ?? .distantPast
+            return DateInterval(start: min(start, date), end: .distantFuture)
+        }
+    }
+}
+
+/// A measurable target inside an arc: something to reach every day, every
+/// week, or once over the whole arc. Quests are its steps: each finished quest
+/// linked to it counts one toward the target.
+///
+/// "Train four days a week" is a wish. "Strength session, 4 a week", with a
+/// 45-minute quest on Monday, Wednesday, Friday and Saturday, is an objective.
+@Model
+final class Objective {
+    var title: String
+    var periodRaw: String
+    /// How many linked quests make it done for one period.
+    var target: Int
+    /// Optional detail: what counts, the standard to hit ("RPE 8, log the weights").
+    var detail: String
+    /// Position in the arc, so objectives keep the order they were made in.
+    var order: Int
+    var createdAt: Date
+    var arc: Arc?
+
+    @Relationship(deleteRule: .nullify, inverse: \Quest.objective)
+    var quests: [Quest] = []
+
+    init(title: String, period: ObjectivePeriod, target: Int, detail: String = "", order: Int = 0,
+         arc: Arc? = nil, createdAt: Date = .now) {
+        self.title = title
+        self.periodRaw = period.rawValue
+        self.target = max(target, 1)
+        self.detail = detail
+        self.order = order
+        self.arc = arc
+        self.createdAt = createdAt
+    }
+
+    var period: ObjectivePeriod { ObjectivePeriod(rawValue: periodRaw) ?? .week }
+
+    /// Linked quests finished in the period that contains `date`.
+    func done(on date: Date = .now) -> Int {
+        let window = period.window(containing: date, arc: arc)
+        return quests.filter { quest in
+            guard let finished = quest.completedAt else { return false }
+            return window.contains(finished)
+        }.count
+    }
+
+    /// Linked quests still open in the same period: what is planned toward it.
+    func planned(on date: Date = .now) -> Int {
+        let window = period.window(containing: date, arc: arc)
+        return quests.filter { $0.isOpen && window.contains($0.scheduledAt) }.count
+    }
+
+    func isMet(on date: Date = .now) -> Bool { done(on: date) >= target }
+
+    /// 0...1, for a bar.
+    func fraction(on date: Date = .now) -> Double { min(Double(done(on: date)) / Double(target), 1) }
+
+    /// "2 of 4 this week".
+    func label(on date: Date = .now) -> String { "\(done(on: date)) of \(target) \(period.phrase)" }
+}
+
+/// What makes an arc end.
+enum ArcKind: String, CaseIterable {
+    /// A stretch of time, like a Winter Arc. It ends on its end date.
+    case seasonal
+    /// One objective or change. It has no end date: it ends when you reach it.
+    case objective
+
+    var name: String {
+        switch self {
+        case .seasonal: "Season"
+        case .objective: "Objective"
+        }
+    }
+
+    var glyph: Glyph {
+        switch self {
+        case .seasonal: .hourglass
+        case .objective: .target
+        }
+    }
+}
+
+/// How far an arc has come, counted from what is in the database. Never stored:
+/// it is worked out fresh each time, so it cannot drift from the real data.
+struct ArcProgress {
+    /// Goals you ticked, out of the arc's goals.
+    var goalsDone = 0
+    var goals = 0
+    /// Quests of this arc you finished, out of those that have come due.
+    var questsDone = 0
+    var questsDue = 0
+    /// Boss tasks finished, out of all the tasks of this arc's bosses.
+    var tasksDone = 0
+    var tasks = 0
+}
+
 /// A life chapter, written in your own words.
 @Model
 final class Arc {
@@ -215,6 +358,14 @@ final class Arc {
     /// The daily quests this arc creates, one `QuestIdea.line` each. Empty for
     /// the seeded arc, which uses the built-in list.
     var questPlan: [String] = []
+    /// When you ended the arc before its last day. Nil for an arc that is still
+    /// running or that ran its full length. Optional with a default, so a store
+    /// saved by an older build opens unchanged (see the note on `Player`).
+    var endedAt: Date? = nil
+    /// `ArcKind` raw value. Arcs saved before kinds existed are seasonal.
+    var kindRaw: String = ArcKind.seasonal.rawValue
+    /// The goals (by their text in `goals`) that you have ticked as reached.
+    var goalsDone: [String] = []
 
     @Relationship(deleteRule: .nullify, inverse: \Quest.arc)
     var quests: [Quest] = []
@@ -222,7 +373,24 @@ final class Arc {
     @Relationship(deleteRule: .cascade, inverse: \Boss.arc)
     var bosses: [Boss] = []
 
-    init(title: String, kanji: String, manifesto: String, goals: [String], startDate: Date, endDate: Date) {
+    /// The arc's measurable targets. `goals` above are the outcomes in words
+    /// ("Bench 100 kg"); objectives are the daily and weekly counts that get you there.
+    @Relationship(deleteRule: .cascade, inverse: \Objective.arc)
+    var objectives: [Objective] = []
+
+    /// Relationships have no guaranteed order, so sort before showing.
+    var orderedObjectives: [Objective] { objectives.sorted { ($0.order, $0.createdAt) < ($1.order, $1.createdAt) } }
+
+    /// The objective with this title, ignoring case: how plans and Claude refer to one.
+    func objective(named title: String?) -> Objective? {
+        guard let title = title?.trimmingCharacters(in: .whitespaces), !title.isEmpty else { return nil }
+        return objectives.first { $0.title.compare(title, options: .caseInsensitive) == .orderedSame }
+    }
+
+    /// An objective arc has no end date; pass `.distantFuture` as its `endDate`.
+    init(title: String, kanji: String, manifesto: String, goals: [String], startDate: Date, endDate: Date,
+         kind: ArcKind = .seasonal) {
+        self.kindRaw = kind.rawValue
         self.title = title
         self.kanji = kanji
         self.manifesto = manifesto
@@ -233,6 +401,56 @@ final class Arc {
 
     var plan: [QuestIdea] { questPlan.compactMap(QuestIdea.init(line:)) }
 
+    /// Several arcs can run at once. One is active from the day it starts until
+    /// its end date, unless you ended it early.
+    func isActive(on date: Date = .now) -> Bool {
+        endedAt == nil && date >= Calendar.current.startOfDay(for: startDate) && date < endDate
+    }
+
+    /// The moment the arc stopped counting: when you ended it, or its planned end.
+    var closedAt: Date { endedAt ?? endDate }
+
+    var kind: ArcKind { ArcKind(rawValue: kindRaw) ?? .seasonal }
+
+    func isDone(_ goal: String) -> Bool { goalsDone.contains(goal) }
+    var allGoalsDone: Bool { !goals.isEmpty && goals.allSatisfy(isDone) }
+
+    /// True for an arc that is over and went the distance: a season that ran to
+    /// its end date, or any arc closed with every goal ticked.
+    var isCompleted: Bool {
+        guard !isActive() else { return false }
+        return endedAt == nil || allGoalsDone
+    }
+
+    func progress(on date: Date = .now) -> ArcProgress {
+        // Recovery quests are a way out of a penalty, not part of the arc's work.
+        let due = quests.filter { !$0.isRecovery && ($0.isDone || $0.scheduledAt <= date) }
+        let tasks = bosses.flatMap(\.tasks)
+        return ArcProgress(goalsDone: goals.filter(isDone).count, goals: goals.count,
+                           questsDone: due.filter(\.isDone).count, questsDue: due.count,
+                           tasksDone: tasks.filter(\.isDone).count, tasks: tasks.count)
+    }
+
+    /// The arc's one bar, 0...1. A season fills with time; an objective fills as
+    /// its goals are ticked.
+    func fraction(on date: Date = .now) -> Double {
+        switch kind {
+        case .seasonal:
+            return Double(min(day(on: isActive(on: date) ? date : closedAt), totalDays)) / Double(totalDays)
+        case .objective:
+            return goals.isEmpty ? 0 : Double(goals.filter(isDone).count) / Double(goals.count)
+        }
+    }
+
+    /// "Day 3 of 90" for a season, "Day 3" for an objective. A finished arc stays on its last day.
+    func dayLabel(on date: Date = .now) -> String {
+        let day = day(on: isActive(on: date) ? date : closedAt)
+        switch kind {
+        case .seasonal: return "Day \(min(day, totalDays)) of \(totalDays)"
+        case .objective: return "Day \(day)"
+        }
+    }
+
     func day(on date: Date = .now) -> Int {
         let calendar = Calendar.current
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: startDate), to: date).day ?? 0
@@ -240,7 +458,21 @@ final class Arc {
     }
 
     var totalDays: Int {
-        max(Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 1, 1)
+        // From the start of the first day, so an arc begun at 22:00 still has all 90 days.
+        max(Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: startDate), to: endDate).day ?? 1, 1)
+    }
+}
+
+// An extension with a `where` clause adds these to any list of arcs (an array,
+// a @Query result) and to nothing else.
+extension Sequence where Element == Arc {
+    /// The arcs running on `date`, in the order they came in.
+    func active(on date: Date = .now) -> [Arc] { filter { $0.isActive(on: date) } }
+
+    /// Every active arc's daily quests as one list (see Exercise 16).
+    func dailyPlan(on date: Date = .now) -> [QuestIdea] {
+        // Only the quests planned for that weekday.
+        PlanMerger.merged(active(on: date).map { $0.plan.filter { $0.runs(on: date) } })
     }
 }
 

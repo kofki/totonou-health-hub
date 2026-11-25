@@ -18,7 +18,8 @@ extension Stat {
 /// and the points you can still spend. Points are spent right here with +.
 struct StatusWindow: View {
     let player: Player
-    let arc: Arc?
+    /// The arcs running now.
+    let arcs: [Arc]
     let rename: () -> Void
 
     @Environment(QuestEngine.self) private var engine
@@ -30,7 +31,7 @@ struct StatusWindow: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
                     Button(action: rename) { field("Name", player.name) }.buttonStyle(.plain)
-                    field("Arc", arc?.title ?? "None")
+                    field(arcs.count > 1 ? "Arcs" : "Arc", arcs.isEmpty ? "None" : arcs.map(\.title).joined(separator: ", "))
                     field("Title", player.activeTitle ?? "None")
                 }
                 Spacer(minLength: 8)

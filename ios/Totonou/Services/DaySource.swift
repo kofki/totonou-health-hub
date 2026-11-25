@@ -42,8 +42,21 @@ extension DaySource {
 final class EventKitDaySource: DaySource {
     static let shared = EventKitDaySource()
 
-    // One store for the whole app: creating EKEventStore is slow.
-    private let store = EKEventStore()
+    // One store for the whole app: creating EKEventStore is slow, so it is
+    // made the first time the calendar is read (`lazy`), not while the app is
+    // still starting and the first screen waits.
+    private lazy var store = EKEventStore()
+
+    /// The last day read, so Today and the daily planner share one read at
+    /// launch. Cleared whenever the calendar database changes.
+    private var cache: (day: Date, events: [CalendarEventInfo])?
+    private var changes: NSObjectProtocol?
+
+    init() {
+        changes = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.cache = nil }
+        }
+    }
 
     // iOS 17 split calendar access into "write only" and "full". Reading
     // events needs full access, so that is the only level checked here.
@@ -62,11 +75,15 @@ final class EventKitDaySource: DaySource {
         guard hasCalendarAccess else { return [] }
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: day)
+        if let cache, cache.day == start { return cache.events }
         guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return [] }
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
-        return store.events(matching: predicate).map { event in
+        var seen = Set<String>()
+        let events = store.events(matching: predicate).map { event in
             CalendarEventInfo(
-                id: event.eventIdentifier ?? UUID().uuidString,
+                // Every occurrence of a repeating event shares one identifier,
+                // so the start time is added to tell occurrences apart.
+                id: Self.id(event.eventIdentifier, start: event.startDate),
                 title: event.title ?? "Busy",
                 start: event.startDate,
                 end: event.endDate,
@@ -76,7 +93,21 @@ final class EventKitDaySource: DaySource {
                 calendarName: event.calendar?.title ?? ""
             )
         }
+        // The same event can be reported twice (shared or subscribed calendars).
+        .filter { seen.insert($0.id).inserted }
         .sorted { $0.start < $1.start }
+        cache = (start, events)
+        return events
+    }
+
+    /// "eventIdentifier|start", unique per occurrence. `baseID` recovers the
+    /// first part, which quests made from events before this change stored.
+    static func id(_ identifier: String?, start: Date) -> String {
+        "\(identifier ?? UUID().uuidString)|\(Int(start.timeIntervalSince1970))"
+    }
+
+    static func baseID(_ id: String) -> String {
+        String(id.split(separator: "|", maxSplits: 1).first ?? Substring(id))
     }
 
     func remindersDue(by day: Date) async -> [ReminderInfo] {

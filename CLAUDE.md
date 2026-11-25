@@ -45,13 +45,13 @@ not what was meant.
 | Cloud | Supabase (Postgres + Auth) via supabase-swift, behind `CloudStore`. Schema in `supabase/migrations/` |
 | Back end (planned) | Go on Cloud Run |
 | Data (planned) | Garmin Connect, HealthKit, Google Calendar, USDA FoodData Central |
-| AI | Foundation Models on-device (`OnDeviceAI.swift`), with rule-based fallbacks. Claude API via a back end is planned |
+| AI | Foundation Models on-device (`OnDeviceAI.swift`). Without Apple Intelligence: Claude on the owner's account through the Totonou MCP server (`supabase/functions/mcp`, `ClaudeLink.swift`, `ClaudeChanges.swift`) and the Mac coach relay (`scripts/coach-relay`). The paid-API `ai` function exists but has no key. Rule-based fallbacks under all |
 | Blocking (planned) | FamilyControls, ManagedSettings, DeviceActivity |
 
 ## Commands
 
 ```bash
-cd ios/TotonouCore && swift test          # 7 exercise tests fail until the owner finishes them
+cd ios/TotonouCore && swift test          # 11 exercise tests fail until the owner finishes them
 xcodebuild -project ios/Totonou.xcodeproj -scheme Totonou \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```

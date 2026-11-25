@@ -172,7 +172,7 @@ private struct DayClearScreen: View {
                         if engine.alarms.isSupported {
                             Toggle("Wake-up alarm", isOn: Binding(
                                 get: { engine.wakeAlarmID != nil },
-                                set: { on in Task { await engine.setWakeAlarm(on, plan: arcs.first?.plan ?? []) } }
+                                set: { on in Task { await engine.setWakeAlarm(on, plan: arcs.dailyPlan()) } }
                             ))
                             .labelsHidden()
                             .tint(Ink.ai)

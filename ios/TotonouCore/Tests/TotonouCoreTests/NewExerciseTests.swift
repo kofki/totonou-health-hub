@@ -39,3 +39,41 @@ import Testing
     @Test func freeIsNotBusy() { #expect(!BusyFilter.isBusy(event(availability: .free))) }
     @Test func declinedIsNotBusy() { #expect(!BusyFilter.isBusy(event(declined: true))) }
 }
+
+// Fails on purpose until you finish Exercise 16.
+@Suite struct PlanMergerExerciseTests {
+    private struct Slot: DailySlot, Equatable {
+        var title: String
+        var hour: Int
+        var minute: Int = 0
+    }
+
+    @Test func slotsComeOutInTimeOrder() {
+        let merged = PlanMerger.merged([
+            [Slot(title: "Run", hour: 18), Slot(title: "Wake", hour: 6, minute: 30)],
+            [Slot(title: "Read", hour: 6, minute: 15), Slot(title: "Lights out", hour: 22)],
+        ])
+        #expect(merged.map(\.title) == ["Read", "Wake", "Run", "Lights out"])
+    }
+
+    @Test func aRepeatedTitleKeepsOnlyTheEarliest() {
+        let merged = PlanMerger.merged([
+            [Slot(title: "Read 20 min", hour: 21)],
+            [Slot(title: " read 20 MIN ", hour: 7), Slot(title: "Run", hour: 8)],
+        ])
+        #expect(merged == [Slot(title: " read 20 MIN ", hour: 7), Slot(title: "Run", hour: 8)])
+    }
+
+    @Test func slotsAtTheSameTimeKeepTheirOrder() {
+        let merged = PlanMerger.merged([
+            [Slot(title: "Stretch", hour: 7)],
+            [Slot(title: "Journal", hour: 7), Slot(title: "Water", hour: 7)],
+        ])
+        #expect(merged.map(\.title) == ["Stretch", "Journal", "Water"])
+    }
+
+    @Test func noPlansGiveAnEmptyList() {
+        #expect(PlanMerger.merged([[Slot]]()).isEmpty)
+        #expect(PlanMerger.merged([[Slot](), []]).isEmpty)
+    }
+}

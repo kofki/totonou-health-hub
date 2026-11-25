@@ -6,11 +6,15 @@ import TotonouCore
 struct CoachView: View {
     @Environment(\.modelContext) private var context
     @Environment(QuestEngine.self) private var engine
+    @Environment(\.openURL) private var openURL
     @Query(sort: \Quest.scheduledAt) private var quests: [Quest]
     @Query private var players: [Player]
     @Query(sort: \Arc.startDate, order: .reverse) private var arcs: [Arc]
 
     @State private var advice: String?
+    /// The latest advice Claude left through the MCP server (ClaudeChanges.swift).
+    @AppStorage(ClaudeCoachNote.textKey) private var claudeNote = ""
+    @AppStorage(ClaudeCoachNote.dateKey) private var claudeNoteDate = 0.0
     @State private var isThinking = false
     @State private var question = ""
     /// Titles of the suggestions already added, so each can be added once.
@@ -28,7 +32,7 @@ struct CoachView: View {
             }
 
             if let player = players.first {
-                let review = Coach.review(quests: quests, player: player, bosses: arcs.first?.bosses ?? [],
+                let review = Coach.review(quests: quests, player: player, arcs: arcs.active(),
                                           readings: engine.readings)
                 if review.total == 0 {
                     SystemWindow(title: "Nothing to review yet") {
@@ -43,6 +47,7 @@ struct CoachView: View {
                     if !review.insights.isEmpty { findings(review) }
                     saw(review)
                     if advisor != nil { ask(review) }
+                    askClaude
                 }
             }
         }
@@ -52,15 +57,21 @@ struct CoachView: View {
 
     private func say(_ review: CoachReview) -> some View {
         SystemWindow(title: "Today") {
-            Text(isThinking ? "Thinking…" : advice ?? review.insights.first?.text ?? "Finish your next quest.")
+            Text(isThinking ? (advisor?.answersOnOpen == false ? "Asking Claude on your Mac…" : "Thinking…")
+                 : advice ?? todaysClaudeNote ?? review.insights.first?.text ?? "Finish your next quest.")
                 .font(.text(18, weight: .medium))
                 .lineSpacing(3)
         }
-        // Ask the on-device model once per visit. Without it, the window shows
+        // Ask the model (on-device or cloud) once per visit. Without it, the window shows
         // the strongest finding from the numbers instead.
         .task {
             guard advice == nil else { return }
-            await think(review, question: nil)
+            if let relay = advisor as? ClaudeRelayAdvisor {
+                // An answer that came in while you were away.
+                advice = await relay.latestAnswerToday()
+            } else {
+                await think(review, question: nil)
+            }
         }
     }
 
@@ -76,6 +87,22 @@ struct CoachView: View {
                 .buttonStyle(SystemButtonStyle(filled: true))
                 .frame(width: 84)
                 .disabled(question.isEmpty || isThinking)
+        }
+    }
+
+    /// A longer talk with Claude in the Claude app, on your own account. Claude
+    /// reads your game through the Totonou connector and can leave its advice
+    /// here with set_coach_message.
+    private var askClaude: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button("Ask Claude") {
+                let request = ClaudePrompt.coach(question: question)
+                UIPasteboard.general.string = request
+                if let url = ClaudePrompt.url(for: request) { openURL(url) }
+                question = ""
+            }
+            .buttonStyle(SystemButtonStyle())
+            Text("Opens Claude with your question. Needs Connect → Claude.").caption()
         }
     }
 
@@ -142,7 +169,7 @@ struct CoachView: View {
                         }
                         Spacer()
                         Button(added.contains(suggestion.id) ? "Added" : "Add") {
-                            engine.add(suggestion.idea, arc: arcs.first, context: context)
+                            engine.add(suggestion.idea, arc: arc(for: suggestion), context: context)
                             added.insert(suggestion.id)
                         }
                         .buttonStyle(SystemButtonStyle())
@@ -164,6 +191,21 @@ struct CoachView: View {
         }
     }
 
+    /// A boss suggestion joins that boss's arc; anything else joins the newest active arc.
+    private func arc(for suggestion: CoachSuggestion) -> Arc? {
+        let active = arcs.active()
+        let boss = active.flatMap(\.bosses).first { boss in
+            boss.tasks.contains { $0.title == suggestion.idea.title }
+        }
+        return boss?.arc ?? active.first
+    }
+
+    /// Claude's note, only on the day it was written: yesterday's advice is stale.
+    private var todaysClaudeNote: String? {
+        guard !claudeNote.isEmpty, Calendar.current.isDateInToday(Date(timeIntervalSince1970: claudeNoteDate)) else { return nil }
+        return claudeNote
+    }
+
     // MARK: Thinking
 
     private func send(_ review: CoachReview) {
@@ -175,7 +217,14 @@ struct CoachView: View {
     private func think(_ review: CoachReview, question: String?) async {
         guard let advisor else { return }
         isThinking = true
-        let answer = try? await advisor.advise(facts: review.factSheet, question: question)
+        let answer: String?
+        do {
+            answer = try await advisor.advise(facts: review.factSheet, question: question)
+        } catch {
+            // The relay is the one that can be away; say so instead of failing quietly.
+            answer = advisor.answersOnOpen ? nil
+                : "No answer yet. Is your Mac on, with the coach relay running? The answer shows here when it comes."
+        }
         withAnimation(.snappy) {
             if let answer { advice = answer }
             isThinking = false

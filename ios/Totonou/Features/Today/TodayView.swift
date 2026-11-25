@@ -29,6 +29,8 @@ struct TodayView: View {
     private var later: [Quest] { quests.filter { $0.isOpen && $0 !== next } }
     private var finished: [Quest] { quests.filter { !$0.isOpen } }
     private var locked: Bool { engine.isLocked(quests) }
+    /// With several arcs running, each quest row says which arc it serves.
+    private var manyArcs: Bool { arcs.active().count > 1 }
 
     var body: some View {
         Screen {
@@ -38,6 +40,13 @@ struct TodayView: View {
                     firstArc
                 } else {
                     if locked { penalty }
+                    if let activity = engine.claudeApplied, Calendar.current.isDateInToday(activity.at) {
+                        // A game message, so a system window: Claude changed your plan.
+                        SystemWindow(title: "Claude") {
+                            Text(activity.count == 1 ? "Claude changed your plan once." : "Claude changed your plan \(activity.count) times.")
+                                .font(.text(17, weight: .medium))
+                        }
+                    }
                     if let next {
                         nextQuest(next, player: player)
                     } else {
@@ -48,7 +57,7 @@ struct TodayView: View {
                     dayList
                     if !finished.isEmpty {
                         DoneSection(quests: finished) { quest in
-                            QuestRow(quest: quest, open: { select(quest) }, complete: { complete(quest, player) })
+                            QuestRow(quest: quest, showArc: manyArcs, open: { select(quest) }, complete: { complete(quest, player) })
                         }
                     }
                 }
@@ -179,7 +188,7 @@ struct TodayView: View {
                 Text("\(later.count)").font(.number(17)).foregroundStyle(Ink.mute)
             }
             ForEach(later) { quest in
-                QuestRow(quest: quest, open: { select(quest) }) {
+                QuestRow(quest: quest, showArc: manyArcs, open: { select(quest) }) {
                     if let player = players.first { complete(quest, player) }
                 }
             }
@@ -205,7 +214,7 @@ struct TodayView: View {
             .buttonStyle(PressStyle())
         } else {
             let questIDs = Set(quests.compactMap(\.externalID))
-            let shown = events.filter { !questIDs.contains($0.id) }
+            let shown = events.filter { !questIDs.contains($0.id) && !questIDs.contains(EventKitDaySource.baseID($0.id)) }
             if !shown.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 10) {
@@ -279,6 +288,7 @@ struct EventRow: View {
 /// One line of the list: a tick box on the left, the quest, its rank on the right.
 struct QuestRow: View {
     let quest: Quest
+    var showArc = false
     let open: () -> Void
     let complete: () -> Void
 
@@ -295,6 +305,7 @@ struct QuestRow: View {
                             .multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
                             Text(quest.scheduledAt.clock)
+                            if showArc, let arc = quest.arc { Text(arc.title).lineLimit(1) }
                             if quest.isCritical { Text("Must do").foregroundStyle(Ink.shu) }
                             if quest.alarmID != nil { GlyphIcon(.alarm, size: 13, tint: Ink.ai) }
                             if quest.isFailed { Text("Missed").foregroundStyle(Ink.shu) }

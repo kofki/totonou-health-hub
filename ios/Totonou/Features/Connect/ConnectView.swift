@@ -15,6 +15,7 @@ struct ConnectView: View {
     /// itself would reveal something), so the app remembers that it asked.
     @AppStorage("healthAsked") private var healthAsked = false
     @State private var refresh = 0
+    @State private var showClaude = false
 
     var body: some View {
         ZStack {
@@ -43,8 +44,12 @@ struct ConnectView: View {
                         if engine.alarms.isSupported {
                             row(.alarm, "Alarms", "A daily wake-up alarm before your first quest, with Done and Snooze.",
                                 done: engine.wakeAlarmID != nil) {
-                                await engine.setWakeAlarm(true, plan: arcs.first?.plan ?? [])
+                                await engine.setWakeAlarm(true, plan: arcs.dailyPlan())
                             }
+                        }
+                        row(.notice, "Claude", "Plans with you and adds quests, from the Claude app or Claude Code.",
+                            done: false, action: "Set up") {
+                            showClaude = true
                         }
                         row(.lock, "Screen Time lock", "Locks chosen apps until you spend earned minutes. Needs a paid Apple developer account first.",
                             done: false, available: false) {}
@@ -62,10 +67,11 @@ struct ConnectView: View {
             .scrollIndicators(.hidden)
         }
         .foregroundStyle(Ink.washi)
+        .sheet(isPresented: $showClaude) { ClaudeConnectView() }
     }
 
     private func row(_ glyph: Glyph, _ title: String, _ detail: String, done: Bool, available: Bool = true,
-                     connect: @escaping () async -> Void) -> some View {
+                     action: String = "Allow", connect: @escaping () async -> Void) -> some View {
         HStack(spacing: 14) {
             GlyphIcon(glyph, size: 26, tint: available ? Ink.ai : Ink.mute)
             VStack(alignment: .leading, spacing: 3) {
@@ -76,7 +82,7 @@ struct ConnectView: View {
             if done {
                 GlyphIcon(.check, size: 20, tint: Ink.ai).accessibilityLabel("Connected")
             } else {
-                Button(available ? "Allow" : "Later") {
+                Button(available ? action : "Later") {
                     Task {
                         await connect()
                         refresh += 1

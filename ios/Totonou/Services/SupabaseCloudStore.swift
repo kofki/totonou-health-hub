@@ -9,13 +9,24 @@ enum SupabaseConfig {
     static let url = "https://xzxzkbpgcmwogwtkwbqp.supabase.co"
     static let publishableKey = "sb_publishable_eL7t42cOLEohq2Si3i8jIw__H0ZyV8G"
 
+    /// One client for the whole app, so the database and the `ai` function
+    /// (CloudAI.swift) share the same signed-in session. Nil when not configured.
+    static let client: SupabaseClient? = {
+        guard let url = URL(string: url), !publishableKey.isEmpty else { return nil }
+        // Use the saved sign-in straight away instead of waiting to refresh it
+        // first; the library refreshes it in the background. (It also stops
+        // the library's launch warning about this setting.)
+        return SupabaseClient(supabaseURL: url, supabaseKey: publishableKey,
+                              options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true)))
+    }()
+
     /// The store the app should use: Supabase when configured, the mock otherwise.
     static func makeStore() -> any CloudStore {
-        guard let url = URL(string: url), !publishableKey.isEmpty else { return MockCloudStore() }
-        return SupabaseCloudStore(url: url, key: publishableKey)
+        guard let client else { return MockCloudStore() }
+        return SupabaseCloudStore(client: client)
     }
 
-    static var isConfigured: Bool { URL(string: url) != nil && !publishableKey.isEmpty }
+    static var isConfigured: Bool { client != nil }
 }
 
 /// The real thing: Supabase Auth for "who is this" and Postgres for the rows.
@@ -23,8 +34,8 @@ enum SupabaseConfig {
 final class SupabaseCloudStore: CloudStore {
     private let client: SupabaseClient
 
-    init(url: URL, key: String) {
-        client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+    init(client: SupabaseClient) {
+        self.client = client
     }
 
     /// Signs in anonymously the first time. Supabase keeps the session in the
@@ -68,6 +79,11 @@ final class SupabaseCloudStore: CloudStore {
     private static func isMissingColumn(_ error: Error) -> Bool {
         let text = String(describing: error)
         return text.contains("PGRST204") || text.contains("column")
+    }
+
+    func eraseQuests() async throws {
+        let userID = try await client.auth.session.user.id
+        try await client.from("quests").delete().eq("user_id", value: userID).execute()
     }
 
     func save(quests: [QuestRecord]) async throws {

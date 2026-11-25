@@ -24,18 +24,22 @@ the same idea already working somewhere else in the project.
 | 13 | Achievement badge | `ios/Totonou/Exercises/Exercise13_AchievementBadge.swift` | The achievement grid on Rewards shows earned and locked badges | `Features/Rewards/RewardViews.swift` → `RewardCard` |
 | 12 | Next milestone | `ios/TotonouCore/Sources/TotonouCore/Exercises/Exercise12_NextMilestone.swift` | The "Next chest" bar on the Rewards screen | `Rewards.swift` → `StreakMilestones` |
 | 14 | Busy-block filter | `ios/TotonouCore/Sources/TotonouCore/Exercises/Exercise14_BusyFilter.swift` | All-day, free and declined events stop pushing quests around | `DayPlanning.swift` → `CalendarEventInfo` |
+| 15 | Cloud arc planner | `ios/Totonou/Exercises/Exercise15_CloudArcPlanner.swift` | "New arc" on a phone without Apple Intelligence gets a plan written by AI instead of keyword rules (needs the `ai` function deployed) | `Services/CloudAI.swift` → `CloudCoachAdvisor`, `Services/OnDeviceAI.swift` → `OnDeviceArcPlanner` |
+| 16 | Merge the daily plans | `ios/TotonouCore/Sources/TotonouCore/Exercises/Exercise16_PlanMerger.swift` | "Every day" on the Arcs tab lists all your arcs' quests in time order, with no repeats; reminders and the wake alarm use the same list | `DayPlanning.swift` → `DayPlanner`, `Models/Models.swift` → `dailyPlan` |
+| 17 | Finished arc row | `ios/Totonou/Exercises/Exercise17_FinishedArcRow.swift` | Finished arcs on the Arcs tab show how they ended, how long they ran and what you got done (now only a grey title) | `Features/Arcs/ArcsView.swift` → `ArcRow`, `Models/Models.swift` → `Arc` |
+| 18 | Objective row | `ios/Totonou/Exercises/Exercise18_ObjectiveRow.swift` | Each objective in an arc shows its count as pips, turns jade when met, and unfolds the quests that count toward it (now one plain line) | `Features/Arcs/ArcsView.swift` → `ArcRow`, `CheckBox`; `Models/Models.swift` → `Objective` |
 
 Exercises 8 and 9 are short and visual. They fit well between 3 and 4, once you
 are comfortable with the Xcode canvas.
 
-## Exercises 2, 12 and 14 have tests
+## Exercises 2, 12, 14 and 16 have tests
 
 ```bash
 cd ios/TotonouCore && swift test
 ```
 
-Nine tests fail until you finish them. That is the starting state, not a bug.
-Run one exercise at a time with `swift test --filter Overall`, `--filter NextMilestone` or `--filter BusyFilter`.
+Eleven tests fail until you finish them. That is the starting state, not a bug.
+Run one exercise at a time with `swift test --filter Overall`, `--filter NextMilestone`, `--filter BusyFilter` or `--filter PlanMerger`.
 
 
 ## How to work

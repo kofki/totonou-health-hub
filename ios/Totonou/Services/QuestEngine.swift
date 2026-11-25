@@ -91,6 +91,13 @@ final class QuestEngine {
     var lastSync: Date?
     /// Today's Health readings from the last sync, for quest progress bars.
     private(set) var readings: [SignalKey: Double] = [:]
+    /// The last batch of Claude's changes applied (ClaudeChanges.swift).
+    var claudeApplied: ClaudeActivity?
+    /// True while Claude's changes are being applied. Launch and coming back to
+    /// the app can both start it; a second run would apply the same changes twice.
+    var isApplyingClaude = false
+    /// The last snapshot sent to Claude, so an unchanged game is not uploaded again.
+    var lastClaudeSnapshot: String?
 
     /// The skill catalogue: the Supabase `skills` table when it can be read,
     /// otherwise the list built into the app.
@@ -117,7 +124,9 @@ final class QuestEngine {
     private(set) var remindersOn = UserDefaults.standard.bool(forKey: "remindersOn")
 
     private let signals: any SignalSource
-    private let cloud: any CloudStore
+    // Readable from the engine's extensions in other files (ProgressReset.swift);
+    // only the engine sets it.
+    let cloud: any CloudStore
     private let reminders: any Reminders
     /// Calendar events and Apple Reminders.
     let day: any DaySource
@@ -150,7 +159,7 @@ final class QuestEngine {
         quest.alarmID = await alarms.schedule(title: quest.title, at: at)
     }
 
-    /// A daily alarm 10 minutes before the arc's first quest of the day.
+    /// A daily alarm 10 minutes before the first quest of the day.
     func setWakeAlarm(_ on: Bool, plan: [QuestIdea]) async {
         if let id = wakeAlarmID { alarms.cancel(id: id) }
         wakeAlarmID = nil
@@ -224,7 +233,10 @@ final class QuestEngine {
         cloudState = .syncing
         do {
             try await cloud.connect()
-            if !hasRestored {
+            // After Reset progress, the cloud copy is the old progress until the
+            // fresh one is saved: never restore from it in between.
+            let resetPending = UserDefaults.standard.bool(forKey: ProgressReset.pendingKey)
+            if !hasRestored && !resetPending {
                 hasRestored = true
                 if let remote = try await cloud.loadProfile(), remote.totalXP > player.totalXP {
                     player.apply(remote)
@@ -234,6 +246,7 @@ final class QuestEngine {
             // the SwiftData objects themselves cannot.
             try await cloud.save(profile: player.record)
             try await cloud.save(quests: quests.map(\.record))
+            if resetPending { UserDefaults.standard.set(false, forKey: ProgressReset.pendingKey) }
             cloudState = .synced(.now)
         } catch is CancellationError {
             // A newer backup replaced this one.
@@ -278,6 +291,27 @@ final class QuestEngine {
         let quest = QuestPlanner.quests(from: [idea], on: now, arc: arc)[0]
         if quest.scheduledAt < now { quest.scheduledAt = now.addingTimeInterval(30 * 60) }
         context.insert(quest)
+    }
+
+    // MARK: Arcs
+
+    /// Tick a goal as reached, or untick it. Only while the arc is running.
+    func setGoal(_ goal: String, done: Bool, arc: Arc) {
+        guard arc.isActive(), arc.goals.contains(goal) else { return }
+        arc.goalsDone.removeAll { $0 == goal }
+        if done { arc.goalsDone.append(goal) }
+    }
+
+    /// End an arc before its last day, or close an objective you have reached. Its unfinished quests leave Today; the
+    /// ones you finished or missed stay as history, and other arcs are untouched.
+    func end(_ arc: Arc, context: ModelContext, now: Date = .now) {
+        guard arc.endedAt == nil else { return }
+        arc.endedAt = now
+        // A recovery quest stays: it is the only way out of the penalty zone.
+        for quest in arc.quests where quest.isOpen && !quest.isRecovery {
+            if let id = quest.alarmID { alarms.cancel(id: id) }
+            context.delete(quest)
+        }
     }
 
     // MARK: Completing
@@ -328,7 +362,7 @@ final class QuestEngine {
         }
         checkMilestone(player, now: now)
         checkAchievements(player, now: now)
-        checkDayClear(player, context: quest.modelContext, arc: quest.arc, now: now)
+        checkDayClear(player, context: quest.modelContext, now: now)
     }
 
     /// Land a hit on a boss by finishing one of its subtasks.
@@ -447,7 +481,7 @@ final class QuestEngine {
     }
 
     /// When the last quest of the day is done: pay the clear bonus and queue the recap.
-    private func checkDayClear(_ player: Player, context: ModelContext?, arc: Arc?, now: Date) {
+    private func checkDayClear(_ player: Player, context: ModelContext?, now: Date) {
         guard let context else { return }
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: now)
@@ -461,7 +495,9 @@ final class QuestEngine {
         player.bankedMinutes += Rewards.dailyClearMinutes
         reward(player, xp: Rewards.dailyClearXP, context: context, now: now)
         let earned = today.reduce(0) { $0 + $1.rank.earnedMinutes } + Rewards.dailyClearMinutes
-        let tomorrow = arc?.plan.min { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
+        // Tomorrow's first quest, across every arc still running.
+        let arcs = (try? context.fetch(FetchDescriptor<Arc>())) ?? []
+        let tomorrow = arcs.dailyPlan(on: now).min { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
         celebrations.append(Celebration(kind: .dayClear(DayClearEvent(
             done: today.count, minutes: earned, statLines: Self.statLine(for: today),
             streak: player.streak(on: now), tomorrow: tomorrow))))

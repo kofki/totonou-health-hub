@@ -5,6 +5,7 @@ import TotonouCore
 
 struct StatusView: View {
     @Environment(QuestEngine.self) private var engine
+    @Environment(\.modelContext) private var context
     @Query private var players: [Player]
     @Query(sort: \Quest.scheduledAt) private var quests: [Quest]
     @Query(sort: \Arc.startDate, order: .reverse) private var arcs: [Arc]
@@ -12,13 +13,15 @@ struct StatusView: View {
     @State private var showConnect = false
     @State private var isRenaming = false
     @State private var newName = ""
+    @State private var confirmReset = false
+    @State private var isResetting = false
     @AppStorage("soundsOn") private var soundsOn = true
 
     var body: some View {
         Screen {
             if let player = players.first {
                 character(player)
-                StatusWindow(player: player, arc: arcs.first) {
+                StatusWindow(player: player, arcs: arcs.active()) {
                     newName = player.name
                     isRenaming = true
                 }
@@ -56,7 +59,7 @@ struct StatusView: View {
 
     /// Quests finished on each of the last seven days.
     private func week(_ player: Player) -> some View {
-        let days = Coach.review(quests: quests, player: player, bosses: []).days
+        let days = Coach.review(quests: quests, player: player, arcs: []).days
         return VStack(alignment: .leading, spacing: 14) {
             SectionHeader("Last 7 days") {
                 Text("\(days.map(\.done).reduce(0, +)) done").caption(size: 15)
@@ -92,11 +95,27 @@ struct StatusView: View {
                 get: { engine.remindersOn },
                 set: { on in
                     let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
-                    Task { await engine.setReminders(on, quests: today, plan: arcs.first?.plan ?? []) }
+                    Task { await engine.setReminders(on, quests: today, plan: arcs.dailyPlan()) }
                 }
             ))
             SettingRow(glyph: .speaker, title: "Sounds", isOn: $soundsOn)
             backup
+            Button("Reset progress") { confirmReset = true }
+                .buttonStyle(SystemButtonStyle(tint: Ink.shu))
+                .disabled(isResetting)
+                .padding(.top, 8)
+                // It cannot be undone, so it asks first and says what goes.
+                .confirmationDialog("Reset all progress?", isPresented: $confirmReset, titleVisibility: .visible) {
+                    Button("Reset progress", role: .destructive) {
+                        isResetting = true
+                        Task {
+                            await engine.resetProgress(context: context)
+                            isResetting = false
+                        }
+                    }
+                } message: {
+                    Text("Level, XP, stats, streak, minutes, rewards and finished quests go back to zero, here and in the cloud. Your arcs, objectives and plans stay. This cannot be undone.")
+                }
         }
     }
 

@@ -46,19 +46,32 @@ struct CoachReview: Sendable {
 /// Something that can turn the week's facts into a few sentences of advice.
 protocol CoachAdvisor: Sendable {
     func advise(facts: String, question: String?) async throws -> String
+    /// True when it answers in a moment, so the Coach tab can ask it on every
+    /// visit. The Mac relay answers only questions you type.
+    var answersOnOpen: Bool { get }
+}
+
+extension CoachAdvisor {
+    var answersOnOpen: Bool { true }
 }
 
 enum Coach {
-    /// The advisor this device has, or nil when there is no on-device model.
+    /// The advisor this device has: Apple's on-device model where it exists,
+    /// otherwise Claude Code through the Mac relay, or nil with neither.
     static func advisor() -> (any CoachAdvisor)? {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *), OnDeviceAI.isAvailable { return OnDeviceCoachAdvisor() }
         #endif
+        // Claude Code on your Mac, on your Claude account (scripts/coach-relay).
+        // `CloudCoachAdvisor` (the paid API) stays available but is not used.
+        if let client = SupabaseConfig.client { return ClaudeRelayAdvisor(client: client) }
         return nil
     }
 
-    static func review(quests: [Quest], player: Player, bosses: [Boss],
+    /// `arcs` are the arcs running now; the review covers the bosses of all of them.
+    static func review(quests: [Quest], player: Player, arcs: [Arc],
                        readings: [SignalKey: Double] = [:], now: Date = .now) -> CoachReview {
+        let bosses = arcs.flatMap(\.bosses)
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .day, value: -6, to: today)!
@@ -78,6 +91,8 @@ enum Coach {
 
         // Facts first: plain measurements, each labelled with what it is.
         review.facts.append("Last 7 days: \(review.done) of \(review.total) quests done, \(review.missed) missed.")
+        review.facts.append(arcs.isEmpty ? "Active arcs: none."
+            : "Active arcs: " + arcs.map { "\($0.title) (\($0.dayLabel(on: now)))" }.joined(separator: "; ") + ".")
         review.facts.append("Current streak: \(review.streak) day\(review.streak == 1 ? "" : "s").")
         let openToday = quests.filter { calendar.isDate($0.scheduledAt, inSameDayAs: now) && $0.isOpen }
         review.facts.append(openToday.isEmpty ? "Open quests today: none."

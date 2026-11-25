@@ -13,8 +13,11 @@ level 1 human with no arc, and Today asks you to write one.
 
 | Piece | State |
 |---|---|
-| Arcs | You describe a chapter; a planner turns it into goals and daily quests, which appear on Today every day |
-| Planner and coach AI | Apple's on-device model (Foundation Models, iOS 26 with Apple Intelligence on). Without it: keyword rules for the plan, computed findings for the coach |
+| Arcs | You describe a chapter; a planner turns it into goals and daily quests, which appear on Today every day. Several arcs can run at once. An arc is a season (90 days) or an objective (no end date, runs until you reach it); each shows its goals, quests and boss tasks done, and you can end one early |
+| Planner and coach AI | Apple's on-device model (Foundation Models, iOS 26 with Apple Intelligence on). Without it, Claude on the owner's own Claude account: Coach questions go to Claude Code on the Mac (`scripts/coach-relay`), and "Plan with Claude" / "Ask Claude" open the Claude app. With neither: keyword rules for the plan, computed findings for the coach |
+| Claude connector | An MCP server (`supabase/functions/mcp`). Claude reads the game and leaves changes (quests, daily quests, objectives, arcs, coach note) that the app applies on open. Set up in Connect → Claude |
+| Scheduled coach | Two Claude Code routines on claude.ai: a 07:00 check-in and a 21:30 review, through the connector |
+| Objectives | Each arc holds daily, weekly or whole-arc counts; quests linked to an objective count toward it |
 | Quests, XP, levels, stats, earned screen time | Working. Each level pays a stat point and 10 banked minutes; titles every 5 levels; rank-ups (every 10) add a streak freeze and an emergency pass; each 10 points in a stat adds 5% XP to its quests |
 | Streaks, freezes, milestone chests, daily clear bonus, achievements, skills | Working, each with its own full-screen moment. 21 unique skills (Iron Body, Dawn Walker, Clockwork, Runner's Stride…) level from 1 to 10 with how you play. They come from the Supabase `skills` table, so they can be edited without an app update; the app falls back to the same list built in |
 | Status sheet and character profile | Status shows a game-style status window (stats with + to spend points) and a character profile |
@@ -34,7 +37,7 @@ level 1 human with no arc, and Today asks you to write one.
 | Widget | Shows your real next quest, level and streak |
 | Shield / intercept | In-app preview only |
 | Meal plans, sleep quests, benchmarks vs. your age | Removed with the mock data. They need real sources first |
-| Go back end, USDA, Claude API | Not started |
+| Go back end, USDA | Not started |
 | Screen Time API blocking | Not started. It needs a paid Apple Developer account: a free team cannot use the Family Controls capability. Designed in Figma |
 
 Designs for the new screens: [Totonou — Rewards and connections](https://www.figma.com/design/j8aW56j4oZgsnb2LTFZek3) (Figma).

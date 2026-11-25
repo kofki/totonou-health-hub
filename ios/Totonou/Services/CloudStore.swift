@@ -60,6 +60,8 @@ protocol CloudStore: Sendable {
     func loadProfile() async throws -> ProfileRecord?
     /// The skill catalogue (the `skills` table). Readable by everyone signed in.
     func loadSkills() async throws -> [SkillDefinition]
+    /// Delete every quest stored in the cloud for this user (Reset progress).
+    func eraseQuests() async throws
 }
 
 /// Keeps everything in memory. Used in previews, and when no project is configured.
@@ -72,6 +74,7 @@ actor MockCloudStore: CloudStore {
     func save(quests: [QuestRecord]) async throws { self.quests = quests }
     func loadProfile() async throws -> ProfileRecord? { profile }
     func loadSkills() async throws -> [SkillDefinition] { [] }
+    func eraseQuests() async throws { quests = [] }
 }
 
 /// What the Status screen says about the backup.
