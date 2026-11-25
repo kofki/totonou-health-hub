@@ -13,6 +13,8 @@ public enum NormCatalog {
              source: "FRIEND registry, Kaminsky 2015", estimated: true),
         Norm(id: "steps", title: "Steps a day", unit: "steps", group: .fitness, stat: .vitality,
              points: [4000, 5800, 7800, 10200, 13000, 20000],
+             // A very active lifestyle rather than training: farming Amish men walk ~18,400 a day.
+             athletes: [12000, 15000, 18400, 21800, 24800, 30000], athleteGroup: "very active men (Amish farmers)",
              source: "Garmin 2024 report, Althoff 2017", estimated: true),
         Norm(id: "restingHeartRate", title: "Resting heart rate", unit: "bpm", group: .heart, stat: .vitality,
              higherIsBetter: false, points: [72, 67, 62, 57, 52, 45],
@@ -27,6 +29,7 @@ public enum NormCatalog {
         // Apple Health reports SDNN, a different measure with its own norms.
         Norm(id: "hrvSDNN", title: "HRV (SDNN)", unit: "ms", group: .heart, stat: .vitality,
              points: [23, 36, 50, 64, 77, 100],
+             athletes: [45, 60, 78, 98, 118, 160], athleteGroup: "endurance athletes (ECG)",
              source: "KORA S4 cohort, Voss 2015", estimated: true),
         // More sleep is not always better: past about 9 hours the ranking stops meaning much.
         Norm(id: "sleepHours", title: "Sleep", unit: "h", group: .recovery, stat: .vitality,
@@ -50,7 +53,10 @@ public enum NormCatalog {
              athletes: [2.05, 2.32, 2.62, 2.92, 3.19, 3.66], athleteGroup: "raw powerlifters, 83 kg",
              worldClass: 4.62, worldClassBy: "Omisakin, 383.5 kg", source: "StrengthLevel, OpenPowerlifting", estimated: true),
         Norm(id: "pushUps", title: "Push-ups", unit: "reps", group: .strength, stat: .strength,
-             points: [17, 22, 25, 29, 36, 50], source: "CSEP norms", estimated: true),
+             points: [17, 22, 25, 29, 36, 50],
+             // Soldiers do hand-release push-ups in 2 minutes: harder than one ordinary set.
+             athletes: [20, 28, 37, 46, 53, 65], athleteGroup: "soldiers (hand-release, 2 min)",
+             worldClass: 61, worldClassBy: "US Army top score, ages 22-26", source: "CSEP norms, US Army 2025", estimated: true),
         // No published percentile table exists; averages run from 2.8 to 7 hours a day.
         Norm(id: "screenMinutes", title: "Locked apps a day", unit: "min", group: .habits, stat: .willpower,
              higherIsBetter: false, points: [480, 360, 250, 165, 110, 45],

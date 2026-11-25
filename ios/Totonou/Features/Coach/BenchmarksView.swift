@@ -6,12 +6,13 @@ import TotonouCore
 /// What you enter yourself for the strength benchmarks. Nothing else in the
 /// app knows your lifts, so these are the only numbers here that are typed in.
 enum LiftRecord: String, CaseIterable, Identifiable {
-    case bodyWeight, bench, squat, deadlift, pushUps
+    case age, bodyWeight, bench, squat, deadlift, pushUps
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .age: "Age"
         case .bodyWeight: "Body weight"
         case .bench: "Bench press, 1 rep max"
         case .squat: "Back squat, 1 rep max"
@@ -20,7 +21,13 @@ enum LiftRecord: String, CaseIterable, Identifiable {
         }
     }
 
-    var unit: String { self == .pushUps ? "reps" : "kg" }
+    var unit: String {
+        switch self {
+        case .age: "years"
+        case .pushUps: "reps"
+        default: "kg"
+        }
+    }
 }
 
 /// One of your numbers next to its norm.
@@ -34,81 +41,84 @@ struct Standing: Identifiable {
     var athletePercentile: Double? { norm.athletePercentile(of: value) }
 }
 
-/// The Coach's benchmark section: where you stand against other men your
-/// age, metric by metric, with the top 1% and Bryan Johnson for reference.
+/// The Coach's benchmark section: where you stand against men your age, metric
+/// by metric, and your character next to famous people's (guessed) ones.
 struct BenchmarksSection: View {
     let player: Player
     let readings: [SignalKey: Double]
 
     @State private var averageSteps: Double?
     @State private var editingLifts = false
+    @State private var showCharacter = false
 
     var body: some View {
         let standings = Self.standings(player: player, readings: readings, averageSteps: averageSteps)
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             SectionHeader("Benchmarks") {
-                Text("Men 20–29").caption(size: 15)
+                Text("vs men 20–29").caption(size: 15)
             }
-            if standings.isEmpty {
-                Text("Connect Apple Health or Garmin, or enter your lifts, to see where you stand.")
-                    .caption(size: 15)
+            Picker("Show", selection: $showCharacter) {
+                Text("Body").tag(false)
+                Text("Character").tag(true)
+            }
+            .pickerStyle(.segmented)
+            if let age = player.lifts[LiftRecord.age.rawValue], !(20...29).contains(Int(age)) {
+                Text("These tables are for men 20–29; you entered \(Int(age)).").caption(Ink.shu, size: 14)
+            }
+
+            if showCharacter {
+                CharacterComparison(mine: CharacterRating.ratings(standings.map { ($0.norm.stat, $0.percentile) }))
+            } else if standings.isEmpty {
+                Text("Connect Apple Health or Garmin, or add your lifts, to see where you stand.").caption(size: 15)
             } else {
-                overview(standings)
                 if let overall = BenchmarkScore.overall(standings.map { $0.norm.benchmark(for: $0.value, shown: $0.shown) }) {
                     // Exercise 2 turns all of these into one number.
-                    Text("Overall: better than \(overall) in 100").font(.text(17, weight: .semibold))
+                    Text("Overall: better than \(overall) in 100").font(.text(18, weight: .semibold))
                 }
+                overview(standings)
                 ForEach(Norm.Group.allCases, id: \.self) { group in
-                    let rows = standings.filter { $0.norm.group == group }
-                    if !rows.isEmpty {
-                        Text(group.rawValue).font(.text(18, weight: .bold)).padding(.top, 4)
-                        ForEach(rows) { NormRow(standing: $0) }
+                    let cards = standings.filter { $0.norm.group == group }
+                    if !cards.isEmpty {
+                        Text(group.rawValue.uppercased()).font(.hud(15, weight: .bold)).foregroundStyle(Ink.mute)
+                            .padding(.top, 4)
+                        ForEach(cards) { NormCard(standing: $0) }
                     }
                 }
             }
+
             Button {
                 editingLifts = true
             } label: {
                 HStack(spacing: 8) {
                     GlyphIcon(.dumbbell, size: 16, tint: Ink.ai)
-                    Text(player.lifts.isEmpty ? "Add your lifts" : "Update your lifts").caption(Ink.ai, size: 16)
+                    Text(player.lifts.isEmpty ? "Add your lifts and age" : "Update your lifts and age").caption(Ink.ai, size: 16)
                 }
                 .padding(.vertical, 6)
             }
             .buttonStyle(PressStyle())
-            Text("Food: nothing records what you eat yet, so there is no food benchmark.").caption(size: 13)
+            Text("No food benchmark yet: nothing records what you eat.").caption(size: 13)
         }
         .task { averageSteps = await HealthVitalsSource.averageSteps() }
         .sheet(isPresented: $editingLifts) { LiftsEditor(player: player) }
     }
 
-    /// One bar per metric: how many people in 100 you beat. Swift Charts draws
-    /// it from plain values; the colour is the stat each metric belongs to.
+    /// One bar per metric: how many men your age in 100 you beat. Swift Charts
+    /// draws it from plain values; the colour is the stat each metric belongs to.
     private func overview(_ standings: [Standing]) -> some View {
         Chart(standings) { standing in
-            BarMark(x: .value("Better than", standing.percentile), y: .value("Metric", standing.norm.title))
+            BarMark(x: .value("Beats", standing.percentile), y: .value("Metric", standing.norm.title))
                 .foregroundStyle(standing.norm.stat.tint)
-                .position(by: .value("Against", "Everyone"))
                 .annotation(position: .trailing) {
                     Text("\(Int(standing.percentile.rounded()))").font(.number(12)).foregroundStyle(Ink.mute)
                 }
-            // A second, fainter bar where athletes have their own table.
-            if let athletes = standing.athletePercentile {
-                BarMark(x: .value("Better than", athletes), y: .value("Metric", standing.norm.title))
-                    .foregroundStyle(standing.norm.stat.tint.opacity(0.4))
-                    .position(by: .value("Against", "Athletes"))
-                    .annotation(position: .trailing) {
-                        Text("\(Int(athletes.rounded())) athletes").font(.number(11)).foregroundStyle(Ink.mute)
-                    }
-            }
-            RuleMark(x: .value("Median", 50))
+            RuleMark(x: .value("Average", 50))
                 .foregroundStyle(Ink.faint)
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
         }
         .chartXScale(domain: 0...100)
         .chartXAxis { AxisMarks(values: [0, 50, 100]) }
-        .frame(height: CGFloat(standings.count) * 30 + CGFloat(standings.filter { $0.athletePercentile != nil }.count) * 18 + 30)
-        .accessibilityLabel("How many people in 100 you do better than, per metric")
+        .frame(height: CGFloat(standings.count) * 32 + 30)
+        .accessibilityLabel("How many men your age in 100 you do better than, per metric")
     }
 
     /// Your numbers that have a norm. Only what was measured or entered: a
@@ -145,43 +155,63 @@ struct BenchmarksSection: View {
     }
 }
 
-/// One metric: your value, where you stand, and a track from the bottom to the
-/// top of the population with the median, the top 1% and Bryan Johnson on it.
-struct NormRow: View {
+/// One metric as a card: your number, a track against men your age, one
+/// against athletes when there is a table, and the details folded away.
+struct NormCard: View {
     let standing: Standing
+    @State private var open = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let norm = standing.norm
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(norm.title).font(.text(17, weight: .semibold))
-                Spacer()
-                Text(standing.shown).font(.number(15))
+        Button {
+            withAnimation(reduceMotion ? nil : .snappy) { open.toggle() }
+        } label: {
+            SystemPanel {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(norm.title).font(.text(18, weight: .semibold))
+                        Spacer()
+                        Text(standing.shown).font(.number(17, weight: .bold))
+                    }
+                    TrackLine(label: "Men 20–29", percentile: standing.percentile, tint: norm.stat.tint,
+                              johnson: norm.bryanJohnson.map(norm.percentile(of:)))
+                    if let athletes = standing.athletePercentile {
+                        TrackLine(label: "Athletes", percentile: athletes, tint: norm.stat.tint.opacity(0.6), johnson: nil)
+                    }
+                    if open { details(norm) }
+                    HStack(spacing: 4) {
+                        Text(open ? "Less" : "Details").caption(size: 13)
+                        GlyphIcon(.chevron, size: 10, tint: Ink.mute).rotationEffect(.degrees(open ? -90 : 90))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // Exercise 24 writes this label; until then, the plain count.
-            Text(standingLabel(percentile: standing.percentile)
-                 ?? "Better than \(Int(standing.percentile.rounded())) in 100")
-                .caption(norm.stat.tint, size: 14)
-            NormTrack(percentile: standing.percentile, tint: norm.stat.tint,
-                      johnson: norm.bryanJohnson.map(norm.percentile(of:)))
-            if let athletes = standing.athletePercentile, let group = norm.athleteGroup {
-                Text("Among \(group): better than \(Int(athletes.rounded())) in 100")
-                    .caption(size: 13).padding(.top, 2)
-                NormTrack(percentile: athletes, tint: norm.stat.tint.opacity(0.6), johnson: nil)
-            }
-            Text(reference(norm)).caption(size: 12)
         }
-        .padding(.vertical, 6)
+        .buttonStyle(PressStyle())
         .accessibilityElement(children: .combine)
     }
 
-    private func reference(_ norm: Norm) -> String {
-        var parts = ["Median \(Self.format(norm.median))", "top 1% \(Self.format(norm.topOnePercent))"]
-        if let johnson = norm.bryanJohnson { parts.append("Bryan Johnson \(Self.format(johnson))") }
-        if let world = norm.worldClass {
-            parts.append("world class \(Self.format(world))" + (norm.worldClassBy.map { " (\($0))" } ?? ""))
+    /// The reference numbers, one per line, so they read as a list.
+    @ViewBuilder private func details(_ norm: Norm) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            fact("Average man, 20s", NormCard.format(norm.median))
+            fact("Top 1%", NormCard.format(norm.topOnePercent))
+            if let group = norm.athleteGroup { fact("Athletes", group) }
+            if let world = norm.worldClass {
+                fact("World class", NormCard.format(world) + (norm.worldClassBy.map { ", \($0)" } ?? ""))
+            }
+            if let johnson = norm.bryanJohnson { fact("Bryan Johnson", NormCard.format(johnson)) }
+            fact("Source", norm.source + (norm.estimated ? " (partly estimated)" : ""))
         }
-        return parts.joined(separator: " · ") + (norm.estimated ? " · partly estimated" : "") + " · " + norm.source
+        .padding(.top, 2)
+    }
+
+    private func fact(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label).caption(size: 13).frame(width: 118, alignment: .leading)
+            Text(value).font(.text(14)).foregroundStyle(Ink.washi).multilineTextAlignment(.leading)
+        }
     }
 
     static func format(_ value: Double) -> String {
@@ -190,6 +220,27 @@ struct NormRow: View {
         var text = String(format: value < 10 ? "%.2f" : "%.1f", value)
         while text.hasSuffix("0") { text.removeLast() }
         return text
+    }
+}
+
+/// A label, a track and where you stand on it, on one line.
+private struct TrackLine: View {
+    let label: String
+    let percentile: Double
+    let tint: Color
+    let johnson: Double?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label).caption(size: 13)
+                Spacer()
+                // Exercise 24 writes this label; until then, the plain share.
+                Text(standingLabel(percentile: percentile) ?? "Beats \(Int(percentile.rounded()))%")
+                    .font(.text(14, weight: .semibold)).foregroundStyle(tint)
+            }
+            NormTrack(percentile: percentile, tint: tint, johnson: johnson)
+        }
     }
 }
 
@@ -207,8 +258,8 @@ private struct NormTrack: View {
                 Capsule().fill(Ink.faint).frame(height: 6)
                 Capsule().fill(tint.opacity(0.85))
                     .frame(width: max(x(percentile), 6), height: 6)
-                marker(at: x(50), label: "50")
-                marker(at: x(99), label: "1%")
+                marker(at: x(50), label: "avg")
+                marker(at: x(99), label: "top 1%")
                 if let johnson { marker(at: x(johnson), label: "BJ") }
                 Circle().fill(.white).frame(width: 12, height: 12)
                     .position(x: x(percentile), y: 3)
@@ -234,7 +285,7 @@ private struct LiftsEditor: View {
 
     var body: some View {
         SheetFrame(title: "Your lifts") {
-            Text("Your best recent numbers. Strength is compared as a multiple of body weight.")
+            Text("Your age, and your best recent numbers. Strength is compared as a multiple of body weight.")
                 .caption(size: 15)
             ForEach(LiftRecord.allCases) { lift in
                 HStack {
@@ -260,11 +311,71 @@ private struct LiftsEditor: View {
             .buttonStyle(SystemButtonStyle(filled: true))
         }
         .onAppear {
-            values = player.lifts.mapValues { NormRow.format($0) }
+            values = player.lifts.mapValues { NormCard.format($0) }
         }
     }
 
     private func binding(_ lift: LiftRecord) -> Binding<String> {
         Binding(get: { values[lift.rawValue] ?? "" }, set: { values[lift.rawValue] = $0 })
+    }
+}
+
+/// Your seven stats as 0-100 ratings next to a famous person's guessed ones.
+private struct CharacterComparison: View {
+    /// Your ratings, from measured numbers; a stat with nothing measured is missing.
+    let mine: [Stat: Int]
+    @State private var other = FamousProfile.all[1]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Menu {
+                ForEach(FamousProfile.all) { person in
+                    Button("\(person.name), \(person.known)") { other = person }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text("You vs \(other.name)").font(.text(18, weight: .semibold))
+                    GlyphIcon(.chevron, size: 12, tint: Ink.ai).rotationEffect(.degrees(90))
+                }
+            }
+            HStack(spacing: 14) {
+                legend(.white, "You")
+                legend(Ink.mute, other.name)
+            }
+            ForEach(Stat.allCases) { stat in row(stat) }
+            Text("\(other.name)'s numbers are guesses for fun, not measurements. Yours come from your benchmarks; Agility, Intelligence, Wisdom and Charisma have no measure yet.")
+                .caption(size: 13)
+        }
+    }
+
+    private func row(_ stat: Stat) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                GlyphIcon(stat.glyph, size: 16, tint: stat.tint)
+                Text(stat.title).font(.text(15, weight: .semibold))
+                Spacer()
+                Text(mine[stat].map(String.init) ?? "–").font(.number(15, weight: .bold))
+                Text("/ \(other.ratings[stat] ?? 0)").font(.number(13)).foregroundStyle(Ink.mute)
+            }
+            bar(Double(mine[stat] ?? 0), tint: stat.tint)
+            bar(Double(other.ratings[stat] ?? 0), tint: Ink.mute)
+        }
+    }
+
+    private func bar(_ value: Double, tint: Color) -> some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Ink.faint)
+                Capsule().fill(tint).frame(width: proxy.size.width * value / 100)
+            }
+        }
+        .frame(height: 5)
+    }
+
+    private func legend(_ tint: Color, _ label: String) -> some View {
+        HStack(spacing: 5) {
+            Capsule().fill(tint).frame(width: 14, height: 5)
+            Text(label).caption(size: 13)
+        }
     }
 }
