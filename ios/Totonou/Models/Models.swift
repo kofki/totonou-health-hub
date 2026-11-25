@@ -25,11 +25,24 @@ enum QuestSource: String, CaseIterable {
 final class Player {
     var name: String
     var totalXP: Int
+    // The stats keep their first names as stored fields, so saved games open
+    // unchanged: `endurance` holds Vitality, `intellect` Intelligence,
+    // `discipline` Willpower and `recovery` Wisdom. Read them with `value(for:)`.
     var strength: Int
     var endurance: Int
     var intellect: Int
     var discipline: Int
     var recovery: Int
+    var agility: Int = 0
+    var charisma: Int = 0
+
+    /// HP lost so far; HP is max HP minus this. Stored as damage rather than HP,
+    /// so raising max HP (more Vitality, a level up) raises HP with it.
+    var damage: Int = 0
+    /// The day whose misses were last reckoned, so each morning counts once.
+    var reckonedDay: Date? = nil
+    /// "2026-11-25|Founder" for each arc cleared, so its heal is paid once a day.
+    var clearedArcs: [String] = []
     /// Earned social-app minutes that have not been spent yet.
     var bankedMinutes: Int
     /// Start-of-day dates on which at least one quest was completed.
@@ -124,6 +137,7 @@ final class Player {
          .bossesDefeated: bossesDefeated, .clearDays: clearDays.count, .streak: streak(on: date),
          .autoDone: autoDone, .runQuests: runQuests, .stepQuests: stepQuests, .mindfulQuests: mindfulQuests,
          .calendarQuests: calendarQuests, .reminderQuests: reminderQuests,
+         .agility: agility, .charisma: charisma,
          .workouts: workouts, .cyclingWorkouts: cyclingWorkouts, .swimWorkouts: swimWorkouts,
          .danceWorkouts: danceWorkouts, .martialArtsWorkouts: martialArtsWorkouts]
             .merging(sportFacts.compactMap { key, value in SkillMeasure(rawValue: key).map { ($0, value) } }) { $1 }
@@ -138,22 +152,35 @@ final class Player {
     func value(for stat: Stat) -> Int {
         switch stat {
         case .strength: strength
-        case .endurance: endurance
-        case .intellect: intellect
-        case .discipline: discipline
-        case .recovery: recovery
+        case .agility: agility
+        case .vitality: endurance
+        case .intelligence: intellect
+        case .wisdom: recovery
+        case .charisma: charisma
+        case .willpower: discipline
         }
     }
 
     func add(_ points: Int, to stat: Stat) {
         switch stat {
         case .strength: strength += points
-        case .endurance: endurance += points
-        case .intellect: intellect += points
-        case .discipline: discipline += points
-        case .recovery: recovery += points
+        case .agility: agility += points
+        case .vitality: endurance += points
+        case .intelligence: intellect += points
+        case .wisdom: recovery += points
+        case .charisma: charisma += points
+        case .willpower: discipline += points
         }
     }
+
+    // MARK: Hit points
+
+    var maxHP: Int { HitPoints.max(vitality: value(for: .vitality), level: progress.level) }
+    var hp: Int { max(maxHP - damage, 0) }
+    var condition: HitPoints.Condition { HitPoints.condition(hp: hp, max: maxHP) }
+
+    func hurt(_ amount: Int) { damage = min(damage + max(amount, 0), maxHP) }
+    func heal(_ amount: Int) { damage = max(damage - max(amount, 0), 0) }
 }
 
 @Model

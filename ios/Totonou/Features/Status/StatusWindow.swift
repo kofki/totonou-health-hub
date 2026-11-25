@@ -1,18 +1,7 @@
 import SwiftUI
 import TotonouCore
 
-extension Stat {
-    /// Three letters for tight places, like a game's stat sheet.
-    var short: String {
-        switch self {
-        case .strength: "STR"
-        case .endurance: "END"
-        case .intellect: "INT"
-        case .discipline: "DIS"
-        case .recovery: "REC"
-        }
-    }
-}
+// `Stat.short` ("STR", "AGI"…) lives in TotonouCore with the stats.
 
 /// The status sheet: who you are, your level, every stat with its XP bonus,
 /// and the points you can still spend. Points are spent right here with +.
@@ -53,6 +42,8 @@ struct StatusWindow: View {
                     Text("\(progress.needed - progress.into) XP to next level").font(.text(14, weight: .medium))
                 }
                 MeterBar(value: progress.fraction, tint: .white, segments: 0)
+                HPBar(hp: player.hp, max: player.maxHP, tint: .white)
+                    .padding(.top, 8)
             }
 
             rule

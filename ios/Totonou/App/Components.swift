@@ -202,7 +202,7 @@ struct SystemButtonStyle: ButtonStyle {
     }
 }
 
-/// The five stats as a pentagon, each corner marked with the stat's icon.
+/// The seven stats as a radar, each corner marked with the stat's icon.
 struct StatRadar: View {
     /// One value per `Stat.allCases`, each 0...1.
     let values: [Double]
@@ -216,7 +216,7 @@ struct StatRadar: View {
             let rect = CGRect(origin: .zero, size: proxy.size)
             ZStack {
                 ForEach([0.33, 0.66, 1.0], id: \.self) { scale in
-                    RadarShape(values: Array(repeating: scale, count: 5)).stroke(Ink.faint, lineWidth: 1)
+                    RadarShape(values: Array(repeating: scale, count: Stat.allCases.count)).stroke(Ink.faint, lineWidth: 1)
                 }
                 RadarShape(values: values, growth: growth).fill(Ink.ai.opacity(0.16))
                 RadarShape(values: values, growth: growth)
@@ -254,9 +254,10 @@ private struct RadarShape: Shape {
         set { growth = newValue }
     }
 
+    /// One corner per stat: seven since 2026-11-25.
     static func point(_ index: Int, scale: Double, in rect: CGRect, outset: CGFloat = 0) -> CGPoint {
         let radius = min(rect.width, rect.height) / 2 - 44
-        let angle = -Double.pi / 2 + Double(index) * 2 * .pi / 5
+        let angle = -Double.pi / 2 + Double(index) * 2 * .pi / Double(Stat.allCases.count)
         let reach = radius * scale + outset
         return CGPoint(x: rect.midX + cos(angle) * reach, y: rect.midY + sin(angle) * reach)
     }
@@ -518,5 +519,36 @@ struct SettingRow: View {
             }
         }
         .tint(Ink.ai)
+    }
+}
+
+/// Hit points: a red bar with the numbers, and a word when you are hurt.
+struct HPBar: View {
+    let hp: Int
+    let max: Int
+    var tint: Color = Ink.shu
+    var showsState = true
+
+    private var condition: HitPoints.Condition { HitPoints.condition(hp: hp, max: max) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                GlyphIcon(.heart, size: 14, tint: tint)
+                Text("HP").font(.hud(14, weight: .bold))
+                Spacer()
+                Text("\(hp) / \(max)").font(.number(14, weight: .semibold))
+            }
+            MeterBar(value: max > 0 ? Double(hp) / Double(max) : 0, tint: tint, height: 6, segments: 10)
+            if showsState {
+                switch condition {
+                case .healthy: EmptyView()
+                case .wounded: Text("Wounded: quests pay half XP until you heal.").caption(tint, size: 13)
+                case .down: Text("Down: the penalty zone. Do the recovery quest.").caption(tint, size: 13)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Hit points \(hp) of \(max)")
     }
 }

@@ -62,7 +62,7 @@ const PLAN_SCHEMA = {
         type: "object",
         properties: {
           title: { type: "string" },
-          stat: { type: "string", enum: ["strength", "endurance", "intellect", "discipline", "recovery"] },
+          stat: { type: "string", enum: ["strength", "agility", "vitality", "intelligence", "wisdom", "charisma", "willpower"] },
           hour: { type: "integer" },
           minutes: { type: "integer" },
           objective: { type: "string" },

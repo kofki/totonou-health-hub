@@ -20,12 +20,18 @@ final class TotonouMonitor: DeviceActivityMonitor {
         super.intervalDidStart(for: activity)
         // A new day of tracking: start counting from zero.
         if activity.rawValue == "totonou.usage" { record(minutes: 0) }
+        // Lock-in hours begin: shut the apps even if minutes were being spent.
+        if activity.rawValue == "totonou.lockin" { shield() }
     }
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
         guard activity.rawValue == "totonou.unlock" else { return }
-        // Only lock again if the lock is still switched on in the app.
+        shield()
+    }
+
+    /// Put the chosen apps behind the shield, if the lock is switched on in the app.
+    private func shield() {
         guard defaults?.bool(forKey: "lockOn") == true,
               let data = defaults?.data(forKey: "lockSelection"),
               let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else { return }

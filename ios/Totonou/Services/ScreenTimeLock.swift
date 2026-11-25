@@ -142,7 +142,13 @@ final class ScreenTimeLock {
     /// Spend earned minutes: open the apps now, lock them again in `minutes`.
     func unlock(minutes: Int, now: Date = .now) {
         guard isOn, minutes > 0 else { return }
-        let end = now.addingTimeInterval(TimeInterval(minutes * 60))
+        var end = now.addingTimeInterval(TimeInterval(minutes * 60))
+        // An unlock stops where lock-in hours begin.
+        if let hours = lockInHours, !isLockIn(now: now),
+           let next = Calendar.current.nextDate(after: now, matching: DateComponents(hour: hours.start, minute: 0),
+                                                matchingPolicy: .nextTime), next < end {
+            end = next
+        }
         // Apple's shortest monitored window is 15 minutes. A shorter unlock (an
         // emergency pass) starts the window in the past, so it still ends on time.
         let start = min(now, end.addingTimeInterval(-15 * 60))
@@ -163,6 +169,59 @@ final class ScreenTimeLock {
         unlockedFrom = now
         unlockedUntil = end
         defaults.set(end, forKey: "unlockedUntil")
+    }
+
+    /// Close an unlock early: a recovery quest just appeared, or lock-in hours began.
+    func endUnlock() {
+        center.stopMonitoring([unlockActivity])
+        unlockedUntil = nil
+        defaults.removeObject(forKey: "unlockedUntil")
+        lock()
+    }
+
+    // MARK: Lock-in hours
+
+    private let lockInActivity = DeviceActivityName("totonou.lockin")
+
+    /// Hours when earned minutes cannot be spent, e.g. 23 to 7 so late nights
+    /// stay off social media. Nil when lock-in is off. Kept in the shared
+    /// defaults so the monitor extension can read them.
+    var lockInHours: (start: Int, end: Int)? {
+        guard defaults.bool(forKey: "lockInOn") else { return nil }
+        return (defaults.integer(forKey: "lockInStart"), defaults.integer(forKey: "lockInEnd"))
+    }
+
+    func setLockIn(on: Bool, start: Int, end: Int) {
+        defaults.set(on, forKey: "lockInOn")
+        defaults.set(start, forKey: "lockInStart")
+        defaults.set(end, forKey: "lockInEnd")
+        center.stopMonitoring([lockInActivity])
+        guard on, start != end else { return }
+        // Every day from start to end; an end earlier than the start runs past midnight.
+        let schedule = DeviceActivitySchedule(intervalStart: DateComponents(hour: start, minute: 0),
+                                              intervalEnd: DateComponents(hour: end, minute: 0), repeats: true)
+        do {
+            try center.startMonitoring(lockInActivity, during: schedule)
+        } catch {
+            problem = "Could not schedule lock-in hours: \(error.localizedDescription)"
+        }
+        if isLockIn() { endUnlock() }
+    }
+
+    /// True during lock-in hours.
+    func isLockIn(now: Date = .now) -> Bool {
+        guard let hours = lockInHours, hours.start != hours.end else { return false }
+        let hour = Calendar.current.component(.hour, from: now)
+        return hours.start < hours.end ? (hour >= hours.start && hour < hours.end)
+            : (hour >= hours.start || hour < hours.end)
+    }
+
+    /// When the current lock-in ends, for the shield screen.
+    func lockInEnds(now: Date = .now) -> Date? {
+        guard isLockIn(now: now), let hours = lockInHours else { return nil }
+        let calendar = Calendar.current
+        let today = calendar.date(bySettingHour: hours.end, minute: 0, second: 0, of: now)!
+        return today > now ? today : calendar.date(byAdding: .day, value: 1, to: today)
     }
 
     /// On every launch: lock again if an unlock ran out while the extension did not.

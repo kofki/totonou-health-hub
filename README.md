@@ -19,10 +19,13 @@ level 1 human with no arc, and Today asks you to write one.
 | Scheduled coach | Two Claude Code routines on claude.ai: a 07:00 check-in and a 21:30 review, through the connector |
 | Objectives | Each arc holds daily, weekly or whole-arc counts; quests linked to an objective count toward it |
 | Quests, XP, levels, stats, earned screen time | Working. Each level pays a stat point and 10 banked minutes; titles every 5 levels; rank-ups (every 10) add a streak freeze and an emergency pass; each 10 points in a stat adds 5% XP to its quests |
-| Streaks, freezes, milestone chests, daily clear bonus, achievements, skills | Working, each with its own full-screen moment. 21 unique skills (Iron Body, Dawn Walker, Clockwork, Runner's Stride…) level from 1 to 10 with how you play. They come from the Supabase `skills` table, so they can be edited without an app update; the app falls back to the same list built in |
+| Streaks, freezes, milestone chests, daily clear bonus, achievements, skills | Working, each with its own full-screen moment. 44 unique skills (Iron Body, Dawn Walker, Volleyball with its own branches, Wave Rider…) level from 1 to 10 with how you play. They come from the Supabase `skills` table, so they can be edited without an app update; the app falls back to the same list built in |
 | Status sheet and character profile | Status shows a game-style status window (stats with + to spend points) and a character profile |
 | Rewards tab | Titles, minutes, freezes, passes, next streak chest, achievements |
-| Penalty zone and recovery quests | Working. Mark one quest a day as "Must do" in its info window; missing it starts the penalty |
+| Seven stats | Strength, Agility, Vitality, Intelligence, Wisdom, Charisma, Willpower, shown as a seven-sided chart on Status |
+| HP | Finishing quests heals, most of all clearing one arc's quests for a day; missed quests, a missed must-do and a short night hurt, at most 40 HP a day. Under 30% you are wounded (half XP); at 0 you are in the penalty zone |
+| Penalty zone and recovery quests | Working. Missing anything yesterday brings one short make-up quest in the morning, from the arc you missed (rank D, 15-20 min); the locked apps stay shut until it is done. A missed must-do also costs 25 HP at once |
+| Lock-in hours | Screen Time setup: hours when the locked apps stay shut even with minutes banked (for example 11 PM to 7 AM) |
 | Bosses | You add a deadline and its tasks; ticking tasks drains its HP |
 | Coach | Reads your last 7 days of quests, your stats and your bosses; suggests quests you can add with one tap |
 | Weekly chart | Status shows planned and finished quests per day (Swift Charts) |

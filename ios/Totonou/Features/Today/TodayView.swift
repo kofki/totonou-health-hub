@@ -86,7 +86,7 @@ struct TodayView: View {
         .sheet(isPresented: $showComposer) { ArcComposer() }
         .sheet(isPresented: $showConnect, onDismiss: { events = engine.day.events(on: .now) }) { ConnectView() }
         .task(id: quests.count) {
-            engine.enforcePenalties(quests: quests, context: context)
+            engine.enforcePenalties(quests: quests, context: context, player: players.first)
         }
     }
 
@@ -106,6 +106,7 @@ struct TodayView: View {
                 }
                 ProgressLine(value: progress.fraction)
                 Text("\(progress.into) / \(progress.needed) XP").caption()
+                HPBar(hp: player.hp, max: player.maxHP)
             }
             VStack(spacing: 4) {
                 GlyphIcon(.flame, size: 24, tint: Ink.shu)
@@ -130,8 +131,8 @@ struct TodayView: View {
 
     private var penalty: some View {
         SystemWindow(title: "Penalty", tint: Ink.shu, notice: true, leading: true) {
-            (Text("A must-do quest was missed. You are in the ") + Text("penalty zone").foregroundStyle(Ink.shu)
-                + Text(". Everything stays locked until the recovery quest is done."))
+            (Text("Something was missed. You are in the ") + Text("penalty zone").foregroundStyle(Ink.shu)
+                + Text(". The apps stay locked until the make-up quest is done. It heals you too."))
                 .font(.text(17, weight: .medium))
         }
     }

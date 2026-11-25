@@ -142,6 +142,8 @@ struct RootView: View {
         await engine.refreshSkills()
         await engine.importReminders(context: context, player: player)
         await engine.syncInBackground(container: context.container)
+        // After the sync, so last night's sleep is known.
+        engine.reckon(context: context, player: player)
         await engine.applyClaudeChanges(context: context)
         ScreenTimeLock.shared.refresh()
     }

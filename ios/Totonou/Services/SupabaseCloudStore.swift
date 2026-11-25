@@ -193,6 +193,7 @@ private struct ProfileRow: Encodable, Sendable {
         case questsDone = "quests_done"
         case autoDone = "auto_done"
         case bossesDefeated = "bosses_defeated"
+        case agility, charisma, damage
     }
 
     // Written by hand so the reward columns are only sent when present: the
@@ -222,6 +223,9 @@ private struct ProfileRow: Encodable, Sendable {
         try c.encode(rewards.questsDone, forKey: .questsDone)
         try c.encode(rewards.autoDone, forKey: .autoDone)
         try c.encode(rewards.bossesDefeated, forKey: .bossesDefeated)
+        try c.encode(rewards.agility, forKey: .agility)
+        try c.encode(rewards.charisma, forKey: .charisma)
+        try c.encode(rewards.damage, forKey: .damage)
     }
 }
 

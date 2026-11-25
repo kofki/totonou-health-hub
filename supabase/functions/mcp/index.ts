@@ -25,7 +25,7 @@ type Json = Record<string, unknown>;
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 const MAX_PENDING = 200;
 
-const STATS = ["strength", "endurance", "intellect", "discipline", "recovery"];
+const STATS = ["strength", "agility", "vitality", "intelligence", "wisdom", "charisma", "willpower"];
 const RANKS = ["E", "D", "C", "B", "A", "S"];
 const SIGNALS = ["steps", "sleepHours", "runKm", "focusMinutes", "activeCalories"];
 const ARC_KINDS = ["seasonal", "objective"];
@@ -34,7 +34,14 @@ const PERIODS = ["day", "week", "arc"];
 const INSTRUCTIONS = `Totonou is the user's personal quest game on their iPhone. Life is split into arcs \
 (chapters) that run side by side: seasonal arcs with dates (Winter Arc, Summer Arc) and objective arcs \
 with no end date, for one change or a life area (Healthy body, Professional, Founder, Social media). \
-Finishing quests earns XP and raises five stats: strength, endurance, intellect, discipline, recovery. \
+Finishing quests earns XP and raises seven stats: strength (lifting, power), agility (sports, mobility, \
+speed), vitality (cardio, steps, sleep, nutrition; it sets max HP), intelligence (study, deep work, \
+shipping), wisdom (reflection, journaling, meditation, planning), charisma (calls, outreach, posting, \
+social plans), willpower (must-dos, hard things, phone limits). Pick the stat a quest truly trains. \
+The user also has HP: finishing quests heals (clearing all of one arc's quests in a day heals most), \
+missed quests and short sleep hurt, at most 40 HP a day. Under 30% they are wounded (half XP); at 0 \
+they are in the penalty zone. A missed day brings one short make-up quest the next morning, from the \
+arc that was missed, and the phone's locked apps stay shut until it is done. \
 You are the coach and the planner.
 
 Each arc has three levels, and the point is that the user can see progress on every one:

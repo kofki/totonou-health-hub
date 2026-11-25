@@ -34,6 +34,10 @@ struct ProfileRewards: Sendable, Equatable {
     var questsDone: Int
     var autoDone: Int
     var bossesDefeated: Int
+    /// The two stats added on 2026-11-25, and HP lost. Defaults keep older code compiling.
+    var agility: Int = 0
+    var charisma: Int = 0
+    var damage: Int = 0
 }
 
 /// One quest, in a shape that can cross the network.
@@ -129,7 +133,8 @@ extension Player {
                       rewards: ProfileRewards(unspentStatPoints: unspentStatPoints, streakFreezes: streakFreezes,
                                               frozenDays: frozenDays, emergencyPasses: emergencyPasses, titles: titles,
                                               activeTitle: activeTitle, achievements: achievementsRaw, clearDays: clearDays,
-                                              questsDone: questsDone, autoDone: autoDone, bossesDefeated: bossesDefeated))
+                                              questsDone: questsDone, autoDone: autoDone, bossesDefeated: bossesDefeated,
+                                              agility: agility, charisma: charisma, damage: damage))
     }
 
     func apply(_ record: ProfileRecord) {
@@ -154,6 +159,9 @@ extension Player {
             questsDone = rewards.questsDone
             autoDone = rewards.autoDone
             bossesDefeated = rewards.bossesDefeated
+            agility = rewards.agility
+            charisma = rewards.charisma
+            damage = rewards.damage
         }
     }
 }

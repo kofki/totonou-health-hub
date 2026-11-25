@@ -14,8 +14,10 @@ import Foundation
 
 /// Everything a skill can grow with.
 public enum SkillMeasure: String, CaseIterable, Codable, Sendable {
-    // The five stats.
-    case strength, endurance, intellect, discipline, recovery
+    // The seven stats. The first five keep their old names, which the Supabase
+    // `skills` table uses: endurance is Vitality, intellect Intelligence,
+    // discipline Willpower, recovery Wisdom (`Stat(rawValue:)` maps them).
+    case strength, endurance, intellect, discipline, recovery, agility, charisma
     // Habits the engine counts as quests complete.
     case earlyQuests, nightQuests, onTimeQuests, longQuests, hardQuests
     case mustDoDone, recoveries, bossesDefeated, clearDays, streak
@@ -193,10 +195,12 @@ public enum SkillCatalog {
     public static let builtIn: [SkillDefinition] = [
         // From the five stats.
         skill("ironBody", "Iron Body", "Grows with Strength.", .strength, Curve.stat, "dumbbell", .common),
-        skill("secondWind", "Second Wind", "Grows with Endurance.", .endurance, Curve.stat, "mountain", .common),
-        skill("sharpMind", "Sharp Mind", "Grows with Intellect.", .intellect, Curve.stat, "book", .common),
-        skill("unyielding", "Unyielding", "Grows with Discipline.", .discipline, Curve.stat, "torii", .common),
-        skill("stillWater", "Still Water", "Grows with Recovery.", .recovery, Curve.stat, "moon", .common),
+        skill("quicksilver", "Quicksilver", "Grows with Agility.", .agility, Curve.stat, "bolt", .common),
+        skill("secondWind", "Second Wind", "Grows with Vitality.", .endurance, Curve.stat, "heart", .common),
+        skill("sharpMind", "Sharp Mind", "Grows with Intelligence.", .intellect, Curve.stat, "book", .common),
+        skill("stillWater", "Still Water", "Grows with Wisdom.", .recovery, Curve.stat, "moon", .common),
+        skill("silverTongue", "Silver Tongue", "Grows with Charisma.", .charisma, Curve.stat, "person", .common),
+        skill("unyielding", "Unyielding", "Grows with Willpower.", .discipline, Curve.stat, "torii", .common),
         // When and how you finish.
         skill("dawnWalker", "Dawn Walker", "Quests finished before 06:30.", .earlyQuests, Curve.habit, "alarm", .rare),
         skill("nightOwl", "Night Owl", "Quests finished after 21:00.", .nightQuests, Curve.habit, "moon", .common),

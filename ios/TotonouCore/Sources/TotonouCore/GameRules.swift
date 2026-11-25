@@ -1,22 +1,63 @@
 import Foundation
 
-/// The five character stats. Every quest trains exactly one.
+/// The seven character stats. Every quest trains exactly one.
 public enum Stat: String, CaseIterable, Codable, Sendable, Identifiable {
-    case strength, endurance, intellect, discipline, recovery
+    /// Raw power: lifting, strength sessions.
+    case strength
+    /// Speed and coordination: sports, mobility, skating, volleyball.
+    case agility
+    /// Stamina and health: cardio, steps, sleep. Sets your max HP.
+    case vitality
+    /// Learning and solving: study, deep work, shipping.
+    case intelligence
+    /// Judgement and calm: reflection, journaling, meditation, planning.
+    case wisdom
+    /// People: calls, outreach, posting, social plans.
+    case charisma
+    /// Doing what you said: must-dos, streaks, hard quests, screen limits.
+    case willpower
+
+    // The five stats before 2026-11-25, and what each became. Quests and
+    // profiles saved then still read back (see init below), and code written
+    // with the old names (`.endurance`) still compiles.
+    public static let endurance = Stat.vitality
+    public static let intellect = Stat.intelligence
+    public static let discipline = Stat.willpower
+    public static let recovery = Stat.wisdom
+
+    /// Also accepts the old names, so data saved before the change still loads.
+    /// Writing `init?(rawValue:)` ourselves replaces the one Swift would make.
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "strength": self = .strength
+        case "agility": self = .agility
+        case "vitality", "endurance": self = .vitality
+        case "intelligence", "intellect": self = .intelligence
+        case "wisdom", "recovery": self = .wisdom
+        case "charisma": self = .charisma
+        case "willpower", "discipline": self = .willpower
+        default: return nil
+        }
+    }
 
     public var id: String { rawValue }
 
     public var kanji: String {
         switch self {
         case .strength: "力"
-        case .endurance: "耐"
-        case .intellect: "知"
-        case .discipline: "律"
-        case .recovery: "癒"
+        case .agility: "速"
+        case .vitality: "命"
+        case .intelligence: "知"
+        case .wisdom: "悟"
+        case .charisma: "魅"
+        case .willpower: "志"
         }
     }
 
     public var title: String { rawValue.capitalized }
+
+    /// Three letters, for tight places: "STR", "AGI", "VIT", "INT", "WIS", "CHA", "WIL".
+    public var short: String { String(rawValue.prefix(3)).uppercased() }
 }
 
 /// Difficulty rank, E (trivial) to S (brutal), and the human rank.

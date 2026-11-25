@@ -19,6 +19,8 @@ struct ShieldView: View {
     @State private var cost = 30
     @State private var usedPass = 0
     private var tint: Color { locked ? Ink.shu : Ink.ai }
+    /// Set during lock-in hours: when they end.
+    private var lockInEnds: Date? { ScreenTimeLock.shared.lockInEnds() }
 
     var body: some View {
         ZStack {
@@ -36,9 +38,10 @@ struct ShieldView: View {
             VStack(alignment: .leading, spacing: 24) {
                 Spacer()
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(locked ? "Everything is locked." : "Instagram is locked.")
+                    Text(locked ? "Everything is locked." : lockInEnds != nil ? "Locked in." : "Instagram is locked.")
                         .font(.text(32, weight: .bold))
-                    Text(locked ? "Finish the recovery quest to open it again." : "Do this first.")
+                    Text(locked ? "Finish the recovery quest to open it again."
+                         : lockInEnds.map { "Social apps open again at \($0.clock)." } ?? "Do this first.")
                         .font(.text(18))
                         .foregroundStyle(Ink.mute)
                 }
@@ -57,7 +60,7 @@ struct ShieldView: View {
 
                 if let player = players.first {
                     VStack(spacing: 10) {
-                        if !locked {
+                        if !locked && lockInEnds == nil {
                             HStack(spacing: 10) {
                                 ForEach([15, 30, 45], id: \.self) { minutes in
                                     Button { cost = minutes } label: {

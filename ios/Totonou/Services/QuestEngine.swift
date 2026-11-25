@@ -411,9 +411,14 @@ final class QuestEngine {
         if let id = quest.alarmID { alarms.cancel(id: id); quest.alarmID = nil }
         if quest.isRecovery {
             player.recoveries += 1
+            player.heal(HitPoints.healForRecovery)
         } else {
             // Mastery: the stat's value before this quest decides the bonus.
-            let xp = Rewards.questXP(rank: quest.rank, statValue: player.value(for: quest.stat))
+            var xp = Rewards.questXP(rank: quest.rank, statValue: player.value(for: quest.stat))
+            // Wounded or down: half XP. Finishing things is also how HP comes back.
+            if player.condition != .healthy { xp /= 2 }
+            player.heal(HitPoints.healForQuest(rank: quest.rank))
+            healIfArcCleared(quest, player: player, now: now)
             player.add(quest.rank.statPoints, to: quest.stat)
             player.bankedMinutes += quest.rank.earnedMinutes
             player.questsDone += 1
@@ -655,18 +660,91 @@ final class QuestEngine {
         try? context.save()
     }
 
-    // MARK: Penalties
+    // MARK: Hit points and penalties
 
-    /// A critical quest that ran past its end time is failed and replaced by a recovery quest.
-    func enforcePenalties(quests: [Quest], context: ModelContext, now: Date = .now) {
+    /// Every quest of the arc done for the day heals once (`HitPoints.healForClearedArc`).
+    private func healIfArcCleared(_ quest: Quest, player: Player, now: Date) {
+        guard let arc = quest.arc else { return }
+        let calendar = Calendar.current
+        let todays = arc.quests.filter { !$0.isRecovery && calendar.isDate($0.scheduledAt, inSameDayAs: now) }
+        // This quest is being completed right now, so it counts as done.
+        guard todays.allSatisfy({ $0.isDone || $0 === quest }) else { return }
+        let key = "\(Self.dayKey(now))|\(arc.title)"
+        guard !player.clearedArcs.contains(key) else { return }
+        // Only this week's keys are kept; older ones can never match again.
+        player.clearedArcs = player.clearedArcs.filter { $0 >= Self.dayKey(now.addingTimeInterval(-7 * 86_400)) } + [key]
+        player.heal(HitPoints.healForClearedArc)
+    }
+
+    static func dayKey(_ date: Date) -> String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    /// A must-do that ran past its end time fails at once and costs HP. Its
+    /// recovery quest comes with the morning reckoning, or now if HP hit 0.
+    func enforcePenalties(quests: [Quest], context: ModelContext, player: Player? = nil, now: Date = .now) {
         for quest in quests where quest.isCritical && quest.isOpen && quest.dueAt < now {
             quest.failedAt = now
-            context.insert(Quest(
-                title: "Recovery: 20 push-ups, 10 min walk",
-                stat: .discipline, rank: .e, isRecovery: true,
-                scheduledAt: now, durationMinutes: 15, arc: quest.arc
-            ))
+            player?.hurt(HitPoints.damageForMustDo)
         }
+        if let player, player.condition == .down {
+            addRecoveryQuest(for: quests.filter { $0.isFailed }, context: context, now: now)
+        }
+    }
+
+    /// Once each morning: what yesterday cost, what last night healed, and
+    /// whether today starts with a recovery quest. Missing anything yesterday
+    /// locks the apps until that quest is done, so the morning gets used.
+    func reckon(context: ModelContext, player: Player, now: Date = .now) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: now)
+        guard player.reckonedDay.map({ !calendar.isDate($0, inSameDayAs: now) }) ?? true,
+              let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return }
+        // The first morning after an update only starts the count; it does not
+        // charge for days before HP existed.
+        let firstTime = player.reckonedDay == nil
+        player.reckonedDay = today
+        guard !firstTime else { return }
+
+        let descriptor = FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= yesterday && $0.scheduledAt < today })
+        let yesterdays = (try? context.fetch(descriptor)) ?? []
+        // Must-dos already cost HP when they failed, so they are not charged twice.
+        let missed = yesterdays.filter { $0.isOpen && !$0.isRecovery && !$0.isCritical }
+        let sleep = readings[.sleepHours]
+        let score = readings[.sleepScore]
+        player.hurt(HitPoints.reckoning(misses: missed.map(\.rank), mustDosMissed: 0,
+                                        sleepHours: sleep, sleepScore: score, screenMinutesOver: 0))
+        player.heal(HitPoints.healForSleep(hours: sleep, score: score))
+
+        // Yesterday's recovery quest is replaced, never stacked.
+        for old in yesterdays where old.isRecovery && old.isOpen { context.delete(old) }
+        let failed = yesterdays.filter { $0.isFailed && !$0.isRecovery }
+        if !missed.isEmpty || !failed.isEmpty || player.condition == .down {
+            addRecoveryQuest(for: missed + failed, context: context, now: now)
+        }
+    }
+
+    /// One recovery quest a day at most, made from the quest you most need to
+    /// make up for: same arc, same stat, a shorter version. Rank D and 15 to 20
+    /// minutes, so it is an L you take, not a wall you stop at.
+    private func addRecoveryQuest(for missed: [Quest], context: ModelContext, now: Date) {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: now)
+        let end = calendar.date(byAdding: .day, value: 1, to: start)!
+        let todays = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate {
+            $0.isRecovery && $0.scheduledAt >= start && $0.scheduledAt < end
+        }))) ?? []
+        guard todays.isEmpty else { return }
+        // The hardest miss, and its parent when it was a step.
+        let worst = missed.map { $0.parent ?? $0 }.max { ($0.rank, $0.durationMinutes) < ($1.rank, $1.durationMinutes) }
+        let title = worst.map { "Make up: \($0.title), short version" } ?? "Make up: 20 push-ups and a 10 min walk"
+        let minutes = min(max((worst?.durationMinutes ?? 30) / 2, 15), 20)
+        let recovery = Quest(title: title, stat: worst?.stat ?? .willpower, rank: .d, isRecovery: true,
+                             scheduledAt: now, durationMinutes: minutes, arc: worst?.arc)
+        context.insert(recovery)
+        // Close whatever is open right now: the apps stay shut until it is done.
+        ScreenTimeLock.shared.endUnlock()
     }
 
     /// True while a recovery quest is waiting. Everything stays sealed until it is done.
@@ -677,7 +755,8 @@ final class QuestEngine {
     // MARK: Screen time
 
     func spend(minutes: Int, player: Player) {
-        guard player.bankedMinutes >= minutes else { return }
+        // Lock-in hours: the minutes stay banked for later.
+        guard player.bankedMinutes >= minutes, !ScreenTimeLock.shared.isLockIn() else { return }
         player.bankedMinutes -= minutes
         // Opens the locked apps for that long, when the Screen Time lock is on.
         ScreenTimeLock.shared.unlock(minutes: minutes)

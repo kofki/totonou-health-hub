@@ -44,7 +44,7 @@ struct GeneratedObjective {
 struct GeneratedQuest {
     @Guide(description: "Short action under six words, for example: Run 5 km easy")
     var title: String
-    @Guide(description: "Exactly one of: strength, endurance, intellect, discipline, recovery")
+    @Guide(description: "Exactly one of: strength, agility, vitality, intelligence, wisdom, charisma, willpower")
     var stat: String
     @Guide(description: "Hour of the day to do it, from 6 to 22")
     var hour: Int

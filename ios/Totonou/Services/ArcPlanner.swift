@@ -189,28 +189,28 @@ struct RuleBasedArcPlanner: ArcPlanner {
                                  objective: "Strength sessions", weekdays: [1, 4]),
                        QuestIdea(title: "Strength session: upper body", stat: .strength, hour: 18, minutes: 45, rank: .c,
                                  objective: "Strength sessions", weekdays: [2, 6]),
-                       QuestIdea(title: "Protein breakfast, 30 g", stat: .recovery, hour: 8, minutes: 10, rank: .e,
+                       QuestIdea(title: "Protein breakfast, 30 g", stat: .vitality, hour: 8, minutes: 10, rank: .e,
                                  objective: "Protein meals"),
-                       QuestIdea(title: "Protein lunch, 30 g", stat: .recovery, hour: 13, minutes: 10, rank: .e,
+                       QuestIdea(title: "Protein lunch, 30 g", stat: .vitality, hour: 13, minutes: 10, rank: .e,
                                  objective: "Protein meals"),
-                       QuestIdea(title: "Protein dinner, 30 g", stat: .recovery, hour: 19, minute: 30, minutes: 10, rank: .e,
+                       QuestIdea(title: "Protein dinner, 30 g", stat: .vitality, hour: 19, minute: 30, minutes: 10, rank: .e,
                                  objective: "Protein meals")]
         }
         if mentions("run", "cardio", "5k", "10k", "endurance", "marathon") {
             goals.append("5 km under 25:00")
             objectives.append(ObjectiveIdea(title: "Runs", period: .week, target: 3, detail: "Two easy, one with intervals"))
-            quests += [QuestIdea(title: "Run 5 km easy", stat: .endurance, hour: 7, minutes: 35, rank: .c,
+            quests += [QuestIdea(title: "Run 5 km easy", stat: .vitality, hour: 7, minutes: 35, rank: .c,
                                  objective: "Runs", weekdays: [2, 7]),
-                       QuestIdea(title: "Run 6 x 400 m intervals", stat: .endurance, hour: 7, minutes: 40, rank: .b,
+                       QuestIdea(title: "Run 6 x 400 m intervals", stat: .agility, hour: 7, minutes: 40, rank: .b,
                                  objective: "Runs", weekdays: [5])]
         }
         if mentions("study", "exam", "school", "learn", "course", "work", "code", "read", "career", "professional", "job") {
             goals.append("Finish one real project you can show")
             objectives.append(ObjectiveIdea(title: "Deep-work blocks", period: .week, target: 5,
                                             detail: "90 min, phone in another room, one task named in advance"))
-            quests += [QuestIdea(title: "Name tomorrow's one task", stat: .discipline, hour: 21, minutes: 5, rank: .e,
+            quests += [QuestIdea(title: "Name tomorrow's one task", stat: .wisdom, hour: 21, minutes: 5, rank: .e,
                                  weekdays: [7, 1, 2, 3, 4]),
-                       QuestIdea(title: "Deep work, 90 min", stat: .intellect, hour: 9, minutes: 90, rank: .b,
+                       QuestIdea(title: "Deep work, 90 min", stat: .intelligence, hour: 9, minutes: 90, rank: .b,
                                  objective: "Deep-work blocks", weekdays: weekdays)]
         }
         if mentions("founder", "startup", "company", "business", "launch", "customer", "product") {
@@ -218,43 +218,43 @@ struct RuleBasedArcPlanner: ArcPlanner {
             objectives += [ObjectiveIdea(title: "Customer conversations", period: .week, target: 5,
                                          detail: "A real call or meeting, notes written after"),
                            ObjectiveIdea(title: "Shipped changes", period: .week, target: 3, detail: "Live, not on a branch")]
-            quests += [QuestIdea(title: "Reach out to 3 prospects", stat: .discipline, hour: 10, minutes: 20, rank: .d,
+            quests += [QuestIdea(title: "Reach out to 3 prospects", stat: .charisma, hour: 10, minutes: 20, rank: .d,
                                  weekdays: weekdays),
-                       QuestIdea(title: "Customer call, notes after", stat: .intellect, hour: 14, minutes: 30, rank: .c,
+                       QuestIdea(title: "Customer call, notes after", stat: .charisma, hour: 14, minutes: 30, rank: .c,
                                  objective: "Customer conversations", weekdays: weekdays),
-                       QuestIdea(title: "Ship one change", stat: .intellect, hour: 16, minutes: 60, rank: .b,
+                       QuestIdea(title: "Ship one change", stat: .intelligence, hour: 16, minutes: 60, rank: .b,
                                  objective: "Shipped changes", weekdays: [1, 3, 5])]
         }
         if mentions("social", "content", "post", "youtube", "tiktok", "instagram", "audience", "followers") {
             goals.append("1,000 followers who engage")
             objectives += [ObjectiveIdea(title: "Posts published", period: .week, target: 3),
                            ObjectiveIdea(title: "Replies to comments", period: .day, target: 1, detail: "Every comment from the last day")]
-            quests += [QuestIdea(title: "Draft and publish a post", stat: .intellect, hour: 12, minutes: 45, rank: .c,
+            quests += [QuestIdea(title: "Draft and publish a post", stat: .charisma, hour: 12, minutes: 45, rank: .c,
                                  objective: "Posts published", weekdays: [1, 3, 5]),
-                       QuestIdea(title: "Reply to every comment", stat: .discipline, hour: 18, minutes: 15, rank: .e,
+                       QuestIdea(title: "Reply to every comment", stat: .charisma, hour: 18, minutes: 15, rank: .e,
                                  objective: "Replies to comments")]
         }
         if mentions("sleep", "rest", "tired", "energy") {
             goals.append("Wake up rested without an alarm")
             objectives.append(ObjectiveIdea(title: "Nights in bed by 23:00", period: .week, target: 6))
-            quests.append(QuestIdea(title: "Screens off, in bed by 23:00", stat: .recovery, hour: 22, minute: 30, minutes: 30,
+            quests.append(QuestIdea(title: "Screens off, in bed by 23:00", stat: .willpower, hour: 22, minute: 30, minutes: 30,
                                     objective: "Nights in bed by 23:00"))
         }
         if mentions("phone", "scroll", "screen", "distract") {
             goals.append("Screen time under two hours a day")
             objectives.append(ObjectiveIdea(title: "Phone-free mornings", period: .week, target: 5,
                                             detail: "No phone for the first hour"))
-            quests.append(QuestIdea(title: "No phone for the first hour", stat: .discipline, hour: 7, minutes: 60, rank: .d,
+            quests.append(QuestIdea(title: "No phone for the first hour", stat: .willpower, hour: 7, minutes: 60, rank: .d,
                                     objective: "Phone-free mornings"))
         }
         if goals.isEmpty {
             goals = ["Make this chapter count: name the outcome"]
             objectives = [ObjectiveIdea(title: "Hard things done", period: .week, target: 5,
                                         detail: "The task you would rather avoid, done before noon")]
-            quests = [QuestIdea(title: "One hard thing before noon", stat: .discipline, hour: 9, minutes: 45, rank: .c,
+            quests = [QuestIdea(title: "One hard thing before noon", stat: .willpower, hour: 9, minutes: 45, rank: .c,
                                 objective: "Hard things done", weekdays: weekdays),
-                      QuestIdea(title: "Walk 20 min", stat: .endurance, hour: 13, minutes: 20, rank: .e),
-                      QuestIdea(title: "Evening review: what moved", stat: .discipline, hour: 21, minutes: 5, rank: .e)]
+                      QuestIdea(title: "Walk 20 min", stat: .vitality, hour: 13, minutes: 20, rank: .e),
+                      QuestIdea(title: "Evening review: what moved", stat: .wisdom, hour: 21, minutes: 5, rank: .e)]
         }
         return ArcDraft(kanji: "道", goals: goals, objectives: objectives, quests: quests, byAI: false)
     }
@@ -264,6 +264,9 @@ extension Stat {
     /// A best guess from loose text, for anything a language model returns.
     init(loose text: String) {
         let text = text.lowercased()
-        self = Stat.allCases.first { text.contains($0.rawValue) } ?? .discipline
+        // Old names too ("endurance" means Vitality), through `Stat(rawValue:)`.
+        let words = text.split { !$0.isLetter }.map(String.init)
+        self = words.lazy.compactMap(Stat.init(rawValue:)).first
+            ?? Stat.allCases.first { text.contains($0.rawValue) } ?? .willpower
     }
 }

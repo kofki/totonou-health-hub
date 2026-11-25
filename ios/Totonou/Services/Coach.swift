@@ -143,7 +143,7 @@ enum Coach {
             review.insights.append(CoachInsight(kind: .boss, text: line))
             review.suggestions.append(CoachSuggestion(
                 title: "Hit \(boss.name)",
-                idea: QuestIdea(title: task.title, stat: .discipline, hour: soon, minutes: 45, rank: .c)
+                idea: QuestIdea(title: task.title, stat: .willpower, hour: soon, minutes: 45, rank: .c)
             ))
         }
         return review
@@ -170,10 +170,12 @@ enum Coach {
     private static func starter(for stat: Stat, hour: Int) -> QuestIdea {
         switch stat {
         case .strength: QuestIdea(title: "20 push-ups", stat: stat, hour: hour, minutes: 5, rank: .e)
-        case .endurance: QuestIdea(title: "Walk 20 min", stat: stat, hour: hour, minutes: 20, rank: .e)
-        case .intellect: QuestIdea(title: "Read 15 min", stat: stat, hour: hour, minutes: 15, rank: .e)
-        case .discipline: QuestIdea(title: "Plan tomorrow", stat: stat, hour: hour, minutes: 5, rank: .e)
-        case .recovery: QuestIdea(title: "Stretch 10 min", stat: stat, hour: hour, minutes: 10, rank: .e)
+        case .agility: QuestIdea(title: "Mobility drill 10 min", stat: stat, hour: hour, minutes: 10, rank: .e)
+        case .vitality: QuestIdea(title: "Walk 20 min", stat: stat, hour: hour, minutes: 20, rank: .e)
+        case .intelligence: QuestIdea(title: "Read 15 min", stat: stat, hour: hour, minutes: 15, rank: .e)
+        case .wisdom: QuestIdea(title: "Journal 5 min", stat: stat, hour: hour, minutes: 5, rank: .e)
+        case .charisma: QuestIdea(title: "Message a friend", stat: stat, hour: hour, minutes: 5, rank: .e)
+        case .willpower: QuestIdea(title: "Plan tomorrow", stat: stat, hour: hour, minutes: 5, rank: .e)
         }
     }
 }

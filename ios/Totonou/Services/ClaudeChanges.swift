@@ -465,6 +465,8 @@ enum ClaudeSnapshot {
                 "name": player.name, "level": level, "rank": Rank.forLevel(level).rawValue, "totalXP": player.totalXP,
                 "streakDays": player.streak(on: now), "bankedScreenMinutes": player.bankedMinutes,
                 "stats": Dictionary(uniqueKeysWithValues: Stat.allCases.map { ($0.rawValue, player.value(for: $0)) }),
+                "hp": player.hp, "maxHP": player.maxHP,
+                "condition": player.condition == .healthy ? "healthy" : player.condition == .wounded ? "wounded" : "down",
             ]
         }
         return try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])

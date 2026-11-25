@@ -81,10 +81,12 @@ extension Stat {
     var glyph: Glyph {
         switch self {
         case .strength: .dumbbell
-        case .endurance: .mountain
-        case .intellect: .book
-        case .discipline: .torii
-        case .recovery: .moon
+        case .agility: .bolt
+        case .vitality: .heart
+        case .intelligence: .book
+        case .wisdom: .moon
+        case .charisma: .person
+        case .willpower: .torii
         }
     }
 }

@@ -5,14 +5,16 @@ import TotonouCore
 // Pieces shared by the reward screens.
 
 extension Stat {
-    /// Each stat has its own colour, so its bar and icon read at a glance.
+    /// The stat's colour. Only the six rank colours exist (CLAUDE.md), so the
+    /// two mind stats share violet and the two will stats share gold; the
+    /// icons tell each pair apart.
     var tint: Color {
         switch self {
-        case .strength: Ink.jade
-        case .endurance: Ink.ai
-        case .intellect: Ink.violet
-        case .discipline: Ink.kin
-        case .recovery: Ink.shu
+        case .strength: Ink.shu
+        case .agility: Ink.jade
+        case .vitality: Ink.ai
+        case .intelligence, .wisdom: Ink.violet
+        case .charisma, .willpower: Ink.kin
         }
     }
 }
