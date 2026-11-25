@@ -85,6 +85,10 @@ final class Player {
     var swimWorkouts: Int = 0
     var danceWorkouts: Int = 0
     var martialArtsWorkouts: Int = 0
+    /// Sport facts (minutes played, volleyball's branches), by `SkillMeasure`
+    /// raw value. One dictionary rather than a field each, so a new sport needs
+    /// no new column. Totals as last read, like the workout counts above.
+    var sportFacts: [String: Int] = [:]
 
     init(name: String, totalXP: Int = 0, strength: Int = 0, endurance: Int = 0, intellect: Int = 0,
          discipline: Int = 0, recovery: Int = 0, bankedMinutes: Int = 0, completionDays: [Date] = []) {
@@ -122,6 +126,7 @@ final class Player {
          .calendarQuests: calendarQuests, .reminderQuests: reminderQuests,
          .workouts: workouts, .cyclingWorkouts: cyclingWorkouts, .swimWorkouts: swimWorkouts,
          .danceWorkouts: danceWorkouts, .martialArtsWorkouts: martialArtsWorkouts]
+            .merging(sportFacts.compactMap { key, value in SkillMeasure(rawValue: key).map { ($0, value) } }) { $1 }
     }
 
     func facts(on date: Date = .now) -> AchievementFacts {

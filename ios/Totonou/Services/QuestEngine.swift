@@ -106,7 +106,11 @@ final class QuestEngine {
     func refreshSkills() async {
         guard !(cloud is MockCloudStore), let rows = try? await cloud.loadSkills() else { return }
         let usable = SkillCatalog.valid(rows)
-        if !usable.isEmpty { skills = usable }
+        // The table wins for skills it has; skills added to the app since are kept.
+        if !usable.isEmpty {
+            let ids = Set(usable.map(\.id))
+            skills = usable + SkillCatalog.builtIn.filter { !ids.contains($0.id) }
+        }
     }
 
     /// One must-do quest per day: missing it sends you to the penalty zone.
@@ -624,6 +628,8 @@ final class QuestEngine {
             player.swimWorkouts = counts[.swimWorkouts] ?? player.swimWorkouts
             player.danceWorkouts = counts[.danceWorkouts] ?? player.danceWorkouts
             player.martialArtsWorkouts = counts[.martialArtsWorkouts] ?? player.martialArtsWorkouts
+            let sports = counts.filter { $0.key.isSport }
+            if !sports.isEmpty { player.sportFacts = Dictionary(uniqueKeysWithValues: sports.map { ($0.key.rawValue, $0.value) }) }
             checkSkills(player, now: .now)
         }
         for quest in quests where quest.isOpen && !quest.isBlocked {

@@ -41,7 +41,54 @@ struct GarminSource: SignalSource {
     }
 
     func workoutCounts() async throws -> [SkillMeasure: Int] {
-        try await base.workoutCounts()
+        var counts = (try? await base.workoutCounts()) ?? [:]
+        // Garmin's own activity list names the sport even when its Apple Health
+        // copy is filed as "Other". Both come from the same watch, so for each
+        // measure the larger total wins rather than adding them up.
+        if let sessions = await Self.sportSessions() {
+            counts.merge(Sport.facts(sessions)) { max($0, $1) }
+        }
+        return counts
+    }
+
+    private struct ActivitiesRequest: Encodable {
+        let date: String
+        let activities = true
+    }
+    private struct Activity: Decodable {
+        let type: String
+        let minutes: Int
+        let start: Date
+    }
+    private struct ActivitiesAnswer: Decodable {
+        let activities: [Activity]?
+    }
+
+    /// Sport sessions from Garmin, at most once every six hours: the list is
+    /// long and changes only when you play.
+    static func sportSessions(now: Date = .now) async -> [Sport.Session]? {
+        let key = "garminSportsCheckedAt"
+        let last = UserDefaults.standard.double(forKey: key)
+        guard now.timeIntervalSince1970 - last > 6 * 3600,
+              UserDefaults.standard.bool(forKey: worksKey),
+              let client = SupabaseConfig.client, (try? await client.auth.session) != nil else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        do {
+            let answer: ActivitiesAnswer = try await client.functions.invoke(
+                "garmin", options: FunctionInvokeOptions(body: ActivitiesRequest(date: dayString(now))), decoder: decoder)
+            UserDefaults.standard.set(now.timeIntervalSince1970, forKey: key)
+            return answer.activities?.compactMap { item in
+                Sport.from(garminType: item.type).map { Sport.Session(sport: $0, minutes: item.minutes, start: item.start) }
+            }
+        } catch {
+            return nil
+        }
+    }
+
+    private static func dayString(_ date: Date) -> String {
+        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
     /// Today's Garmin readings, or nil when Garmin is not set up or did not answer.

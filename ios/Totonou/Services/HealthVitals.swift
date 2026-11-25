@@ -56,7 +56,36 @@ struct HealthVitalsSource: SignalSource {
     }
 
     func workoutCounts() async throws -> [SkillMeasure: Int] {
-        try await base.workoutCounts()
+        var counts = try await base.workoutCounts()
+        // The sports on top: minutes played and volleyball's branches.
+        guard HKHealthStore.isHealthDataAvailable(), !counts.isEmpty else { return counts }
+        let query = HKSampleQueryDescriptor(predicates: [.workout()], sortDescriptors: [])
+        let sessions = try await query.result(for: HealthKitSignalSource.store).compactMap { workout -> Sport.Session? in
+            guard let sport = Self.sport(workout.workoutActivityType) else { return nil }
+            return Sport.Session(sport: sport, minutes: Int(workout.duration / 60), start: workout.startDate)
+        }
+        counts.merge(Sport.facts(sessions)) { $1 }
+        return counts
+    }
+
+    /// Apple Health's workout types for each sport. Running is left out on purpose.
+    static func sport(_ type: HKWorkoutActivityType) -> Sport? {
+        switch type {
+        case .volleyball: .volleyball
+        case .surfingSports: .surf
+        case .skatingSports: .skate
+        case .snowboarding: .snowboard
+        case .downhillSkiing, .crossCountrySkiing: .ski
+        case .climbing: .climb
+        case .basketball: .basketball
+        case .soccer: .soccer
+        case .tennis, .badminton, .squash, .racquetball, .tableTennis, .pickleball: .racquet
+        case .paddleSports: .paddle
+        case .hiking: .hike
+        case .yoga: .yoga
+        case .golf: .golf
+        default: nil
+        }
     }
 
     private static func sum(_ id: HKQuantityTypeIdentifier, unit: HKUnit, from start: Date, to end: Date) async throws -> Double {

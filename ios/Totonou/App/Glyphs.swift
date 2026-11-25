@@ -17,6 +17,8 @@ enum Glyph: String, CaseIterable {
     case flame, hourglass, lock, sync, plus, chevron, scroll, sword, person, check, cloud, bell, speaker
     // Rewards and system windows
     case notice, chest, freeze, crown, pass, alarm, star, bolt, shield, target, warning, rankUp
+    // Sports
+    case ball, wave
 }
 
 /// Turns grid coordinates into real points inside a rectangle, so paths can be
@@ -306,6 +308,23 @@ extension Glyph {
         case .rankUp:
             p.polyline(g(6, 12), g(12, 6), g(18, 12))
             p.polyline(g(6, 18), g(12, 12), g(18, 18))
+
+        case .ball:
+            // A volleyball: a circle with three curved panels meeting near the middle.
+            p.addEllipse(in: CGRect(origin: g(4, 4), size: CGSize(width: g.length(16), height: g.length(16))))
+            p.move(to: g(12, 12))
+            p.addQuadCurve(to: g(12, 4), control: g(15, 8))
+            p.move(to: g(12, 12))
+            p.addQuadCurve(to: g(5, 16), control: g(7, 11))
+            p.move(to: g(12, 12))
+            p.addQuadCurve(to: g(19, 16), control: g(15, 17))
+
+        case .wave:
+            // A curling wave over a calm line of water.
+            p.move(to: g(3, 16))
+            p.addCurve(to: g(15, 7), control1: g(6, 9), control2: g(11, 5))
+            p.addQuadCurve(to: g(14, 12), control: g(18, 10))
+            p.polyline(g(3, 20), g(21, 20))
         }
         return p
     }

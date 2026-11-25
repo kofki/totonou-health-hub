@@ -33,6 +33,12 @@ struct SkillRow: View {
     let skill: SkillDefinition
     let facts: SkillFacts
 
+    /// Sports add how much you have played (Exercise 23): "Hours on the court. 12 h so far."
+    private var detail: String {
+        guard skill.measure.isMinutes, let played = playedLabel(minutes: skill.value(facts)) else { return skill.detail }
+        return "\(skill.detail) \(played)"
+    }
+
     var body: some View {
         let level = skill.level(facts)
         HStack(spacing: 12) {
@@ -43,10 +49,11 @@ struct SkillRow: View {
                 HStack {
                     Text(skill.name).font(.text(17, weight: .semibold))
                     Spacer()
-                    Text(level > 0 ? "Lv. \(level)" : "Locked").font(.number(16, weight: .bold))
+                    Text(level > 0 ? [skill.rank(facts), "Lv. \(level)"].compactMap { $0 }.joined(separator: " · ") : "Locked")
+                        .font(.number(16, weight: .bold))
                         .foregroundStyle(level > 0 ? skill.tint : Ink.mute)
                 }
-                Text(skill.detail).caption(size: 13)
+                Text(detail).caption(size: 13)
                 MeterBar(value: skill.progress(facts), tint: level > 0 ? skill.tint : Ink.mute, height: 5, segments: 0)
             }
         }

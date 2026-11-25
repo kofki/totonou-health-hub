@@ -59,6 +59,35 @@ function num(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+/** Every recorded activity, newest first, as type, minutes and start. Up to
+ * 1000; null when Garmin does not offer the list to this key. */
+async function activities(token: string): Promise<{ type: string; minutes: number; start: string }[] | null> {
+  const all: { type: string; minutes: number; start: string }[] = [];
+  try {
+    for (let start = 0; start < 1000; start += 100) {
+      const response = await fetch(`${BASE}/activitylist-service/activities/search/activities?start=${start}&limit=100`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      });
+      if (!response.ok) return all.length > 0 ? all : null;
+      const page = await response.json();
+      if (!Array.isArray(page) || page.length === 0) break;
+      for (const item of page) {
+        const type = item?.activityType?.typeKey;
+        const seconds = num(item?.duration) ?? num(item?.movingDuration);
+        const begun = item?.startTimeGMT ?? item?.startTimeLocal;
+        if (typeof type === "string" && seconds !== undefined && typeof begun === "string") {
+          all.push({ type, minutes: Math.round(seconds / 60), start: begun.replace(" ", "T") + "Z" });
+        }
+      }
+      if (page.length < 100) break;
+    }
+  } catch (error) {
+    console.error(error);
+    return all.length > 0 ? all : null;
+  }
+  return all;
+}
+
 Deno.serve(async (request) => {
   if (request.method !== "POST") return reply(405, { error: "POST only" });
   const key = Deno.env.get("GARMIN_API_KEY");
@@ -72,8 +101,11 @@ Deno.serve(async (request) => {
   if (who.user.id !== owner) return reply(403, { error: "This Garmin account belongs to another user" });
 
   let date: string;
+  let wantsActivities = false;
   try {
-    date = String((await request.json()).date ?? "");
+    const body = await request.json();
+    date = String(body.date ?? "");
+    wantsActivities = body.activities === true;
   } catch {
     return reply(400, { error: "Body must be JSON" });
   }
@@ -101,7 +133,8 @@ Deno.serve(async (request) => {
       sleepScore: num(scores.overall?.value),
       hrv: num(hrvSummary.lastNightAvg),
     };
-    return reply(200, { date, readings, hrvStatus: hrvSummary.status ?? null });
+    const list = wantsActivities ? await activities(token) : null;
+    return reply(200, { date, readings, hrvStatus: hrvSummary.status ?? null, activities: list });
   } catch (error) {
     console.error(error);
     return reply(502, { error: "Garmin did not answer" });

@@ -23,6 +23,87 @@ public enum SkillMeasure: String, CaseIterable, Codable, Sendable {
     case autoDone, runQuests, stepQuests, mindfulQuests, calendarQuests, reminderQuests
     // Workouts recorded in Apple Health, all time, by type.
     case workouts, cyclingWorkouts, swimWorkouts, danceWorkouts, martialArtsWorkouts
+    // Sports, in minutes played, from Apple Health and Garmin (see `Sport`).
+    case volleyballMinutes, surfMinutes, skateMinutes, snowboardMinutes, skiMinutes, climbMinutes
+    case basketballMinutes, soccerMinutes, racquetMinutes, paddleMinutes, hikeMinutes, yogaMinutes, golfMinutes
+    // Volleyball's branches: games played, the longest one, games in the last 30 days.
+    case volleyballSessions, volleyballLongest, volleyballRecent
+
+    /// Measures counted in minutes, shown as hours played.
+    public var isMinutes: Bool { rawValue.hasSuffix("Minutes") }
+
+    /// The measures that come from sport sessions (`Sport.facts`).
+    public var isSport: Bool { isMinutes || rawValue.hasPrefix("volleyball") }
+}
+
+/// The sports that grow a skill. Running and plain gym work are left out on
+/// purpose: these are the things you can say you know how to do.
+public enum Sport: String, CaseIterable, Sendable {
+    case volleyball, surf, skate, snowboard, ski, climb, basketball, soccer, racquet, paddle, hike, yoga, golf
+
+    public var minutes: SkillMeasure {
+        switch self {
+        case .volleyball: .volleyballMinutes
+        case .surf: .surfMinutes
+        case .skate: .skateMinutes
+        case .snowboard: .snowboardMinutes
+        case .ski: .skiMinutes
+        case .climb: .climbMinutes
+        case .basketball: .basketballMinutes
+        case .soccer: .soccerMinutes
+        case .racquet: .racquetMinutes
+        case .paddle: .paddleMinutes
+        case .hike: .hikeMinutes
+        case .yoga: .yogaMinutes
+        case .golf: .golfMinutes
+        }
+    }
+
+    /// A Garmin activity type key ("volleyball", "resort_snowboarding",
+    /// "inline_skating"…) to a sport, or nil for ones that grow no skill.
+    public static func from(garminType key: String) -> Sport? {
+        let key = key.lowercased()
+        func has(_ parts: String...) -> Bool { parts.contains { key.contains($0) } }
+        if has("volleyball") { return .volleyball }
+        if has("surf") { return .surf }
+        if has("snowboard") { return .snowboard }
+        // "skate_skiing" is cross-country skiing, not skating.
+        if has("skat") && !has("ski") { return .skate }
+        if has("ski") { return .ski }
+        if has("climb", "boulder") { return .climb }
+        if has("basketball") { return .basketball }
+        if has("soccer") { return .soccer }
+        if has("tennis", "pickleball", "padel", "badminton", "squash", "racquet", "racket") { return .racquet }
+        if has("kayak", "paddl", "canoe", "stand_up") { return .paddle }
+        if has("hik") { return .hike }
+        if has("yoga") { return .yoga }
+        if has("golf") { return .golf }
+        return nil
+    }
+
+    /// One recorded session of a sport.
+    public struct Session: Sendable, Equatable {
+        public let sport: Sport
+        public let minutes: Int
+        public let start: Date
+        public init(sport: Sport, minutes: Int, start: Date) {
+            self.sport = sport
+            self.minutes = minutes
+            self.start = start
+        }
+    }
+
+    /// The skill facts every sport session adds up to.
+    public static func facts(_ sessions: [Session], now: Date = .now) -> SkillFacts {
+        var facts: SkillFacts = [:]
+        for session in sessions { facts[session.sport.minutes, default: 0] += session.minutes }
+        let volleyball = sessions.filter { $0.sport == .volleyball }
+        let monthAgo = now.addingTimeInterval(-30 * 86_400)
+        facts[.volleyballSessions] = volleyball.count
+        facts[.volleyballLongest] = volleyball.map(\.minutes).max() ?? 0
+        facts[.volleyballRecent] = volleyball.filter { $0.start >= monthAgo }.count
+        return facts
+    }
 }
 
 /// The current value of every measure. Missing keys count as 0.
@@ -38,9 +119,13 @@ public struct SkillDefinition: Identifiable, Codable, Equatable, Sendable {
     /// A `Glyph` raw value in the app, such as "dumbbell". Unknown names fall back to a star.
     public let glyph: String
     public let rarity: Rarity
+    /// The skill this one branches from, by id, for a skill tree. Nil for a root.
+    public let parent: String?
+    /// A name for each level ("Rookie", "Regular"…), shown next to "Lv. 3".
+    public let ranks: [String]?
 
     public init(id: String, name: String, detail: String, measure: SkillMeasure, thresholds: [Int],
-                glyph: String, rarity: Rarity) {
+                glyph: String, rarity: Rarity, parent: String? = nil, ranks: [String]? = nil) {
         self.id = id
         self.name = name
         self.detail = detail
@@ -48,6 +133,15 @@ public struct SkillDefinition: Identifiable, Codable, Equatable, Sendable {
         self.thresholds = thresholds
         self.glyph = glyph
         self.rarity = rarity
+        self.parent = parent
+        self.ranks = ranks
+    }
+
+    /// The name of the level reached, or nil when it has none or is locked.
+    public func rank(_ facts: SkillFacts) -> String? {
+        let level = level(facts)
+        guard level > 0, let ranks, level <= ranks.count else { return nil }
+        return ranks[level - 1]
     }
 
     public func value(_ facts: SkillFacts) -> Int { facts[measure] ?? 0 }
@@ -77,6 +171,17 @@ public enum SkillCatalog {
         public static let rare = [1, 2, 4, 6, 9, 12, 16, 20, 25, 30]
         public static let streak = [3, 7, 14, 21, 30, 45, 60, 100, 180, 365]
         public static let volume = [3, 10, 25, 50, 80, 120, 170, 230, 300, 400]
+        /// Minutes played: 1 h, 3 h, 6 h, 10 h, 20 h, 30 h, 50 h, 80 h, 120 h, 200 h.
+        public static let sport = [60, 180, 360, 600, 1200, 1800, 3000, 4800, 7200, 12000]
+    }
+
+    /// Level names for sports, from first game to the top.
+    public static let sportRanks = ["Beginner", "Rookie", "Regular", "Skilled", "Advanced",
+                                    "Expert", "Elite", "Master", "Legend", "Mythic"]
+
+    private static func sport(_ id: String, _ name: String, _ what: String, _ sport: Sport, _ glyph: String) -> SkillDefinition {
+        SkillDefinition(id: id, name: name, detail: what, measure: sport.minutes, thresholds: Curve.sport,
+                        glyph: glyph, rarity: .rare, ranks: sportRanks)
     }
 
     private static func skill(_ id: String, _ name: String, _ detail: String, _ measure: SkillMeasure,
@@ -117,6 +222,28 @@ public enum SkillCatalog {
         skill("openWater", "Open Water", "Swimming workouts.", .swimWorkouts, Curve.habit, "moon", .common),
         skill("rhythm", "Rhythm", "Dance workouts.", .danceWorkouts, Curve.habit, "star", .common),
         skill("wayOfTheFist", "Way of the Fist", "Martial arts, boxing and wrestling workouts.", .martialArtsWorkouts, Curve.habit, "sword", .rare),
+        // Sports: hours played, from Garmin and Apple Health. Each says what you can do.
+        sport("volleyball", "Volleyball", "Hours on the court.", .volleyball, "ball"),
+        SkillDefinition(id: "courtRegular", name: "Court Regular", detail: "Volleyball games played.",
+                        measure: .volleyballSessions, thresholds: Curve.habit, glyph: "ball", rarity: .rare, parent: "volleyball"),
+        SkillDefinition(id: "endlessRally", name: "Endless Rally", detail: "Your longest volleyball game, in minutes.",
+                        measure: .volleyballLongest, thresholds: [45, 60, 90, 120, 150, 180], glyph: "hourglass",
+                        rarity: .epic, parent: "volleyball"),
+        SkillDefinition(id: "inSeason", name: "In Season", detail: "Volleyball games in the last 30 days.",
+                        measure: .volleyballRecent, thresholds: [2, 4, 6, 8, 12, 16], glyph: "flame", rarity: .epic,
+                        parent: "volleyball"),
+        sport("waveRider", "Wave Rider", "Hours surfing.", .surf, "wave"),
+        sport("rollingStone", "Rolling Stone", "Hours skating and skateboarding.", .skate, "bolt"),
+        sport("powderHound", "Powder Hound", "Hours snowboarding.", .snowboard, "mountain"),
+        sport("slopeRunner", "Slope Runner", "Hours skiing.", .ski, "mountain"),
+        sport("wallWalker", "Wall Walker", "Hours climbing and bouldering.", .climb, "mountain"),
+        sport("hoops", "Hoops", "Hours of basketball.", .basketball, "ball"),
+        sport("pitchMaster", "Pitch Master", "Hours of football (soccer).", .soccer, "ball"),
+        sport("racquetHand", "Racquet Hand", "Hours of tennis, padel, pickleball, badminton and squash.", .racquet, "ball"),
+        sport("paddler", "Paddler", "Hours kayaking, canoeing and paddleboarding.", .paddle, "wave"),
+        sport("trailFinder", "Trail Finder", "Hours hiking.", .hike, "mountain"),
+        sport("flowState", "Flow State", "Hours of yoga.", .yoga, "moon"),
+        sport("fairway", "Fairway", "Hours of golf.", .golf, "target"),
     ]
 
     /// Keeps only rows the app can use: a known measure (decoding already
@@ -125,6 +252,29 @@ public enum SkillCatalog {
         rows.filter { row in
             !row.thresholds.isEmpty && row.thresholds.count <= 10 && row.thresholds.first! > 0
                 && zip(row.thresholds, row.thresholds.dropFirst()).allSatisfy { $0 < $1 }
+        }
+    }
+}
+
+/// Skills in the order a list shows them: each root, then its branches.
+public enum SkillTree {
+    public struct Item: Sendable, Equatable {
+        public let skill: SkillDefinition
+        public let isBranch: Bool
+    }
+
+    /// Roots unlocked first, then by how close the rest are; a branch always
+    /// follows its root, ordered the same way.
+    public static func ordered(_ skills: [SkillDefinition], facts: SkillFacts) -> [Item] {
+        func before(_ a: SkillDefinition, _ b: SkillDefinition) -> Bool {
+            (a.level(facts), a.progress(facts)) > (b.level(facts), b.progress(facts))
+        }
+        let ids = Set(skills.map(\.id))
+        // A branch whose root is missing is shown as a root, so it never disappears.
+        let roots = skills.filter { $0.parent.map { !ids.contains($0) } ?? true }.sorted(by: before)
+        return roots.flatMap { root in
+            [Item(skill: root, isBranch: false)]
+                + skills.filter { $0.parent == root.id }.sorted(by: before).map { Item(skill: $0, isBranch: true) }
         }
     }
 }

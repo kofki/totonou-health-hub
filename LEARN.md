@@ -32,6 +32,7 @@ the same idea already working somewhere else in the project.
 | 20 | Step progress | `ios/Totonou/Exercises/Exercise20_StepProgress.swift` | A quest with steps shows them as pips under its title on Today (now plain "1/3 steps") | `Features/Today/TodayView.swift` → `QuestRow` |
 | 21 | Plan steps label | `ios/Totonou/Exercises/Exercise21_PlanStepsLabel.swift` | A daily quest in an arc's plan says how many steps it has and how long they take, "3 steps, 32 min" (now nothing) | `Features/Arcs/ArcsView.swift` → `PlanLine` |
 | 22 | Shared arcs label | `ios/Totonou/Exercises/Exercise22_SharedArcsLabel.swift` | A daily quest that also counts for other arcs says "Also for Winter Arc and Founder" on the Arcs screen (now nothing) | `Services/ClaudeChanges.swift` → `ClaudeActivity.message` |
+| 23 | Played label | `ios/Totonou/Exercises/Exercise23_PlayedLabel.swift` | Sport skills say how long you have played, "2 h 15 min so far." (now only the description) | `Features/Rewards/RewardViews.swift` → `SkillRow` |
 
 Exercises 8 and 9 are short and visual. They fit well between 3 and 4, once you
 are comfortable with the Xcode canvas.

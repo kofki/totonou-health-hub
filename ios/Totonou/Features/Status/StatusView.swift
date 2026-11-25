@@ -10,6 +10,7 @@ struct StatusView: View {
     @Query(sort: \Quest.scheduledAt) private var quests: [Quest]
     @Query(sort: \Arc.startDate, order: .reverse) private var arcs: [Arc]
     @State private var showHistory = false
+    @State private var showAllSkills = false
     @State private var showConnect = false
     @State private var isRenaming = false
     @State private var newName = ""
@@ -174,15 +175,32 @@ struct StatusView: View {
     private func skills(_ player: Player) -> some View {
         let facts = player.skillFacts()
         let unlocked = engine.skills.filter { $0.level(facts) > 0 }.count
+        let tree = SkillTree.ordered(engine.skills, facts: facts)
+        // Folded: the skills you have, up to five. Unfolded: every skill, locked ones too.
+        let folded = Array(tree.filter { $0.skill.level(facts) > 0 }.prefix(5))
+        let shown = showAllSkills || folded.isEmpty ? tree : folded
         return VStack(alignment: .leading, spacing: 14) {
             SectionHeader("Skills") {
                 Text("\(unlocked) of \(engine.skills.count)").caption(size: 15)
             }
-            // Unlocked first, then by how close the rest are.
-            ForEach(engine.skills.sorted {
-                ($0.level(facts), $0.progress(facts)) > ($1.level(facts), $1.progress(facts))
-            }) { skill in
-                SkillRow(skill: skill, facts: facts)
+            ForEach(shown, id: \.skill.id) { item in
+                SkillRow(skill: item.skill, facts: facts)
+                    // A branch sits under its skill, behind a thin line, like a tree.
+                    .padding(.leading, item.isBranch ? 26 : 0)
+                    .overlay(alignment: .leading) {
+                        if item.isBranch { Rectangle().fill(Ink.faint).frame(width: 2).padding(.leading, 8) }
+                    }
+            }
+            if shown.count < tree.count || showAllSkills {
+                Button {
+                    withAnimation(.snappy) { showAllSkills.toggle() }
+                } label: {
+                    Text(showAllSkills ? "Show less" : "See all \(tree.count) skills").caption(Ink.ai, size: 16)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressStyle())
             }
         }
     }
