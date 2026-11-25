@@ -301,6 +301,14 @@ private struct QuestUpload: Encodable, Sendable {
         try c.encode(failedAt, forKey: .failedAt)
         try c.encode(autoCompleted, forKey: .autoCompleted)
         try c.encode(updatedAt, forKey: .updatedAt)
+        // Every row must send the same keys: a bulk upsert takes its columns
+        // from the rows, so a key left out on some would be dropped or nulled.
+        try c.encode(arc, forKey: .arc)
+        try c.encode(objective, forKey: .objective)
+        try c.encode(parentTitle, forKey: .parentTitle)
+        try c.encode(parentScheduledAt, forKey: .parentScheduledAt)
+        try c.encode(signalKey, forKey: .signalKey)
+        try c.encode(target, forKey: .target)
     }
 }
 
