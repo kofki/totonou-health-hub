@@ -87,27 +87,40 @@ struct QuestInfoWindow: View {
                     window
                     if quest.isOpen { options }
                     if quest.isOpen && quest.parent == nil && !quest.isRecovery { steps }
-                    if quest.isOpen && quest.source == .manual {
-                        Button(quest.isBlocked ? "Finish its steps first" : "Complete") {
-                            withAnimation(.snappy) { engine.complete(quest, player: player) }
-                            close()
-                        }
-                        .buttonStyle(SystemButtonStyle(tint: tint, filled: true))
-                        .disabled(quest.isBlocked)
-                    }
-                    Button("Close", action: close)
-                        .buttonStyle(SystemButtonStyle(tint: tint))
                 }
                 .padding(.horizontal, 22)
-                .padding(.vertical, 60)
+                .padding(.top, 60)
+                .padding(.bottom, 20)
             }
             .scrollIndicators(.hidden)
+            // Pinned under the scrolling part, so the buttons are always in
+            // reach however long the window is.
+            .safeAreaInset(edge: .bottom) { actions }
         }
         .foregroundStyle(Ink.washi)
     }
 
+    private var actions: some View {
+        HStack(spacing: 12) {
+            Button("Close", action: close)
+                .buttonStyle(SystemButtonStyle(tint: tint))
+            if quest.isOpen && quest.source == .manual {
+                Button(quest.isBlocked ? "Steps first" : "Complete") {
+                    withAnimation(.snappy) { engine.complete(quest, player: player) }
+                    close()
+                }
+                .buttonStyle(SystemButtonStyle(tint: tint, filled: true))
+                .disabled(quest.isBlocked)
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .background(Ink.deep.opacity(0.96).ignoresSafeArea())
+    }
+
     private var window: some View {
-        SystemWindow(title: quest.isRecovery ? "Recovery quest" : "Quest info", tint: tint) {
+        SystemWindow(title: quest.isRecovery ? "Recovery quest" : "Quest info", tint: tint, onClose: close) {
             Text(quest.title.uppercased()).font(.hud(30))
             HStack(spacing: 10) {
                 RankBadge(rank: quest.rank, size: 32)

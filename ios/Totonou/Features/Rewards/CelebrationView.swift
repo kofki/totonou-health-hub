@@ -67,7 +67,7 @@ private struct Moment<Figure: View, Content: View>: View {
             ScrollView {
                 VStack(spacing: 18) {
                     figure
-                    content
+                    content.environment(\.closeWindow, dismiss)
                     Button(button, action: dismiss)
                         .buttonStyle(SystemButtonStyle(tint: tint, filled: true))
                         .padding(.top, 6)

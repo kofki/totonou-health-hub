@@ -316,9 +316,20 @@ struct SystemWindow<Content: View>: View {
     var notice = false
     /// Left-aligned text, for long windows such as the character profile.
     var leading = false
+    /// What the X does. Without one, the X closes the window's sheet or the
+    /// screen around it (`closeWindow`); a window that cannot close has no X.
+    var onClose: (() -> Void)? = nil
     @ViewBuilder var content: Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.closeWindow) private var closeWindow
+    // True when this view is inside a sheet or full-screen cover; `dismiss` closes it.
+    @Environment(\.isPresented) private var isPresented
+    @Environment(\.dismiss) private var dismiss
+
+    private var close: (() -> Void)? {
+        onClose ?? closeWindow ?? (isPresented ? { dismiss() } : nil)
+    }
 
     var body: some View {
         VStack(alignment: leading ? .leading : .center, spacing: 14) {
@@ -333,7 +344,9 @@ struct SystemWindow<Content: View>: View {
         .padding(.bottom, 24)
         .background(panel)
         .overlay(frame)
-        .overlay(alignment: .topTrailing) { controls.padding(12) }
+        .overlay(alignment: .topTrailing) {
+            if let close { closeButton(close) }
+        }
         .overlay { PixelBits(tint: notice ? tint : .white) }
         .background { GlowLayer(shape: WindowShape(), tint: tint, radius: 20) }
     }
@@ -389,15 +402,24 @@ struct SystemWindow<Content: View>: View {
     }
 
     /// Decoration only: the little window buttons in the corner.
-    private var controls: some View {
-        HStack(spacing: 4) {
-            Rectangle().frame(width: 8, height: 1.5)
-            Rectangle().strokeBorder(lineWidth: 1.2).frame(width: 8, height: 8)
-            GlyphIcon(.plus, size: 11, tint: .white).rotationEffect(.degrees(45))
+    private func closeButton(_ close: @escaping () -> Void) -> some View {
+        Button(action: close) {
+            GlyphIcon(.plus, size: 13, tint: .white).rotationEffect(.degrees(45))
+                .opacity(0.85)
+                // A 44-point target, the smallest Apple recommends for a finger.
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
-        .foregroundStyle(.white.opacity(0.8))
-        .accessibilityHidden(true)
+        .buttonStyle(PressStyle())
+        .accessibilityLabel("Close")
     }
+}
+
+extension EnvironmentValues {
+    /// How a window closes the screen it is shown on, set by that screen (a
+    /// celebration, the quest info overlay). `@Entry` declares an environment
+    /// value with its default in one line; nil means "nothing to close".
+    @Entry var closeWindow: (() -> Void)? = nil
 }
 
 /// Small glowing squares scattered just outside a window's edge, like a

@@ -49,7 +49,7 @@ struct TodayView: View {
                     if locked { penalty }
                     if let activity = engine.claudeApplied, Calendar.current.isDateInToday(activity.at) {
                         // A game message, so a system window: Claude changed your plan.
-                        SystemWindow(title: "Update") {
+                        SystemWindow(title: "Update", onClose: { withAnimation(.snappy) { engine.claudeApplied = nil } }) {
                             Text(activity.message)
                                 .font(.text(17, weight: .medium))
                         }
