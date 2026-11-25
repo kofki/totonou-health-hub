@@ -18,6 +18,7 @@
 // Deploy: supabase functions deploy mcp --no-verify-jwt
 
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { notify } from "../_shared/apns.ts";
 
 type Json = Record<string, unknown>;
 
@@ -26,7 +27,7 @@ const MAX_PENDING = 200;
 
 const STATS = ["strength", "endurance", "intellect", "discipline", "recovery"];
 const RANKS = ["E", "D", "C", "B", "A", "S"];
-const SIGNALS = ["steps", "sleepHours", "runKm", "focusMinutes"];
+const SIGNALS = ["steps", "sleepHours", "runKm", "focusMinutes", "activeCalories"];
 const ARC_KINDS = ["seasonal", "objective"];
 const PERIODS = ["day", "week", "arc"];
 
@@ -55,8 +56,14 @@ session: lower body, 45 min" on Mon and Thu counting toward "Strength sessions, 
 on top of existing ones.
 - Size honestly: rank E is trivial (5-10 min), D easy, C a real session (30-45 min), B hard (60+ min), \
 A and S rare and demanding. A normal day holds 4 to 7 quests across all arcs together, not per arc.
-- When Apple Health can prove it, set autoComplete (steps, sleepHours, runKm, focusMinutes) with a \
-target, so the quest finishes itself.
+- When Apple Health can prove it, set autoComplete (steps, sleepHours, runKm, focusMinutes, \
+activeCalories) with a target, so the quest finishes itself.
+- healthToday may also hold restingHeartRate, hrv, vo2Max, and from Garmin bodyBattery, stress and \
+sleepScore. Use them to judge recovery: a low Body Battery or HRV means an easier day, not a harder one.
+- healthToday.screenMinutes is today's use of the apps the user chose to lock (social media and the \
+like), in 15-minute steps, so "at least" that many minutes. screenTimeHistory holds earlier days. Look \
+for patterns (which weekdays run high, whether it rises after missed quests or poor sleep) and plan \
+around them, for example a phone-free quest at the hour usage usually climbs.
 - mustDo is for the one or two quests a day that matter most; missing one has a penalty in the game.
 - add_daily_quest for repeating steps (with weekdays), add_quests for one-off days, add_objective to \
 give an existing arc a new count.
@@ -83,7 +90,7 @@ const questProperties = {
     description: "Lets Apple Health finish the quest. Omit for quests the user ticks off by hand.",
     properties: {
       signal: { type: "string", enum: SIGNALS },
-      target: { type: "number", description: "Value to reach today: steps, hours of sleep, km run, or focus minutes." },
+      target: { type: "number", description: "Value to reach today: steps, hours of sleep, km run, focus minutes, or active kcal." },
     },
     required: ["signal", "target"],
   },
@@ -356,6 +363,21 @@ function list(value: unknown, name: string, min: number, max: number): unknown[]
 
 type Change = { kind: string; payload: Json };
 
+/** What the phone shows for a batch of changes. */
+function pushText(changes: Change[]): [string, string] {
+  if (changes.length === 1 && changes[0].kind === "coach_message") {
+    return ["Coach", String(changes[0].payload.text)];
+  }
+  const names: Record<string, string> = {
+    add_quest: "quest", add_daily_quest: "daily quest", add_objective: "objective",
+    add_arc: "arc", end_arc: "arc ended", remove_quest: "quest removed", coach_message: "coach note",
+  };
+  const titles = changes.map((c) => c.payload.title ?? c.payload.arc).filter(Boolean).slice(0, 3).join(", ");
+  const kinds = [...new Set(changes.map((c) => names[c.kind]))].join(", ");
+  return ["Claude changed your plan", `${changes.length} change${changes.length === 1 ? "" : "s"} (${kinds})` +
+    (titles ? `: ${titles}` : "") + ". Open Totonou to apply."];
+}
+
 async function queue(db: SupabaseClient, userID: string, changes: Change[]): Promise<string> {
   const { count } = await db.from("claude_changes")
     .select("id", { count: "exact", head: true })
@@ -367,6 +389,7 @@ async function queue(db: SupabaseClient, userID: string, changes: Change[]): Pro
     .insert(changes.map((change) => ({ user_id: userID, ...change })));
   if (error) throw new Error(error.message);
   const noun = changes.length === 1 ? "change" : "changes";
+  await notify(db, userID, ...pushText(changes));
   return `Saved ${changes.length} ${noun}. They apply the next time the Totonou app is opened.`;
 }
 
@@ -460,6 +483,7 @@ async function call(db: SupabaseClient, userID: string, name: string, args: Json
         .eq("id", id).eq("user_id", userID).is("answer", null).select("id");
       if (error) throw new Invalid("id must be a question id from get_coach_questions");
       if (!data || data.length === 0) throw new Invalid("No unanswered question with that id");
+      await notify(db, userID, "Coach answered", answer);
       return "Answered. It shows on the Coach tab.";
     }
     case "set_coach_message":

@@ -122,6 +122,10 @@ final class QuestEngine {
 
     /// Whether quest reminders are switched on. Remembered between launches.
     private(set) var remindersOn = UserDefaults.standard.bool(forKey: "remindersOn")
+    /// Morning summary, evening count and must-do warnings (Nudges.swift).
+    private(set) var dailyNudgesOn = UserDefaults.standard.bool(forKey: "dailyNudgesOn")
+    /// Streak-at-risk and unspent stat point alerts (Nudges.swift).
+    private(set) var streakAlertsOn = UserDefaults.standard.bool(forKey: "streakAlertsOn")
 
     private let signals: any SignalSource
     // Readable from the engine's extensions in other files (ProgressReset.swift);
@@ -135,7 +139,7 @@ final class QuestEngine {
     /// The daily wake-up alarm, remembered between launches.
     private(set) var wakeAlarmID = UserDefaults.standard.string(forKey: "wakeAlarmID")
 
-    init(signals: any SignalSource = HealthKitSignalSource(), cloud: any CloudStore = MockCloudStore(),
+    init(signals: any SignalSource = GarminSource(), cloud: any CloudStore = MockCloudStore(),
          reminders: any Reminders = LocalReminders(), day: any DaySource = EventKitDaySource.shared,
          alarms: (any QuestAlarms)? = nil) {
         self.signals = signals
@@ -258,24 +262,46 @@ final class QuestEngine {
     // MARK: Reminders
 
     /// Turning reminders on asks iOS for permission the first time.
-    func setReminders(_ on: Bool, quests: [Quest], plan: [QuestIdea]) async {
+    func setReminders(_ on: Bool, quests: [Quest], plan: [QuestIdea], player: Player? = nil, arcs: [Arc] = []) async {
         remindersOn = on ? await reminders.requestPermission() : false
         UserDefaults.standard.set(remindersOn, forKey: "remindersOn")
-        if remindersOn { await refreshReminders(quests: quests, plan: plan) } else { await reminders.schedule([]) }
+        await refreshReminders(quests: quests, plan: plan, player: player, arcs: arcs)
+    }
+
+    /// The daily nudges and the streak and reward alerts. Each asks iOS for
+    /// permission the first time it is switched on.
+    func setNudges(daily: Bool? = nil, streak: Bool? = nil, quests: [Quest], player: Player?, arcs: [Arc]) async {
+        if let daily {
+            dailyNudgesOn = daily ? await reminders.requestPermission() : false
+            UserDefaults.standard.set(dailyNudgesOn, forKey: "dailyNudgesOn")
+        }
+        if let streak {
+            streakAlertsOn = streak ? await reminders.requestPermission() : false
+            UserDefaults.standard.set(streakAlertsOn, forKey: "streakAlertsOn")
+        }
+        await refreshReminders(quests: quests, plan: arcs.dailyPlan(), player: player, arcs: arcs)
     }
 
     /// One notification per open quest today, plus the arc's quests for the next
     /// three days, so reminders keep coming even if you do not open the app.
-    func refreshReminders(quests: [Quest], plan: [QuestIdea], now: Date = .now) async {
-        guard remindersOn else { return }
+    func refreshReminders(quests: [Quest], plan: [QuestIdea], player: Player? = nil, arcs: [Arc] = [],
+                          now: Date = .now) async {
+        // Everything is rescheduled together, because scheduling replaces what was there.
+        let settings = Nudges.Settings(daily: dailyNudgesOn, streakAndRewards: streakAlertsOn)
+        var items = Nudges.items(quests: quests, player: player, arcs: arcs, settings: settings, now: now)
+        guard remindersOn else {
+            await reminders.schedule(items)
+            return
+        }
         let calendar = Calendar.current
-        var items = quests.filter { $0.isOpen && $0.scheduledAt > now }.map {
+        items += quests.filter { $0.isOpen && $0.scheduledAt > now }.map {
             ReminderItem(id: "today-\($0.title)", title: $0.title,
                          body: "+\($0.rank.xp) XP · +\($0.rank.earnedMinutes) min", at: $0.scheduledAt)
         }
         for offset in 1...3 {
             guard let day = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now)) else { continue }
-            for idea in plan {
+            // Each day's own plan when the arcs are known, so weekday quests land on their days.
+            for idea in arcs.isEmpty ? plan : arcs.dailyPlan(on: day) {
                 guard let at = calendar.date(bySettingHour: idea.hour, minute: idea.minute, second: 0, of: day) else { continue }
                 items.append(ReminderItem(id: "day\(offset)-\(idea.title)", title: idea.title,
                                           body: "+\(idea.rank.xp) XP · +\(idea.rank.earnedMinutes) min", at: at))
@@ -550,6 +576,7 @@ final class QuestEngine {
         guard player.emergencyPasses > 0 else { return false }
         player.emergencyPasses -= 1
         player.passLog.append(now)
+        ScreenTimeLock.shared.unlock(minutes: 5, now: now)
         return true
     }
 
@@ -618,5 +645,7 @@ final class QuestEngine {
     func spend(minutes: Int, player: Player) {
         guard player.bankedMinutes >= minutes else { return }
         player.bankedMinutes -= minutes
+        // Opens the locked apps for that long, when the Screen Time lock is on.
+        ScreenTimeLock.shared.unlock(minutes: minutes)
     }
 }

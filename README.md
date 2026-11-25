@@ -30,7 +30,8 @@ level 1 human with no arc, and Today asks you to write one.
 | Sounds | Quest complete, level up, boss hit. Switch in Status |
 | Cloud backup (Supabase) | Profile and today's quests are saved after every change. Reading them back is Exercise 10. Reward fields are not uploaded until `20261124120000_rewards.sql` is applied |
 | Apple Health | Steps, running distance, mindful minutes and sleep. Quests named like "8,000 steps", "Run 5 km" or "Meditate 10 min" complete themselves, also in the background |
-| Garmin | Through Apple Health: turn on Garmin Connect → Settings → Apple Health |
+| Garmin | Through Apple Health (steps, runs, sleep, calories, resting heart rate, HRV, VO2 max), and directly through the Garmin Connect Personal API (`supabase/functions/garmin`: Body Battery, stress, sleep score, HRV). The function needs the `GARMIN_API_KEY` secret |
+| Notifications | Quest reminders, daily nudges (morning summary, evening count, must-do warning) and streak and reward alerts on the phone; push alerts when Claude changes the plan or answers the Coach (`supabase/functions/_shared/apns.ts`, needs an APNs key) |
 | Calendars (Google included) | Read through EventKit. Add Google under iOS Settings → Calendar → Accounts. Daily quests move off busy blocks; Today lists your events with + to make one a quest |
 | Apple Reminders | Reminders due today become quests; finishing either side finishes the other |
 | Alarms | AlarmKit on iOS 26: per-quest alarms and a daily wake-up alarm, Done and Snooze; switch them on in a quest's info window or after a day clear. iOS gives no app access to Clock app alarms |
@@ -38,7 +39,7 @@ level 1 human with no arc, and Today asks you to write one.
 | Shield / intercept | In-app preview only |
 | Meal plans, sleep quests, benchmarks vs. your age | Removed with the mock data. They need real sources first |
 | Go back end, USDA | Not started |
-| Screen Time API blocking | Not started. It needs a paid Apple Developer account: a free team cannot use the Family Controls capability. Designed in Figma |
+| Screen Time lock | Chosen apps stay locked; spending earned minutes opens them for that long (`ScreenTimeLock.swift`, `TotonouMonitor` extension re-locks). Also tracks daily use of those apps in 15-minute steps for the Coach and Claude. Works only on a real iPhone; untested on a device so far |
 
 Designs for the new screens: [Totonou — Rewards and connections](https://www.figma.com/design/j8aW56j4oZgsnb2LTFZek3) (Figma).
 

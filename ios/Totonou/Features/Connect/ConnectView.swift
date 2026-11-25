@@ -13,9 +13,12 @@ struct ConnectView: View {
 
     /// iOS never tells an app whether Health read access was granted (that
     /// itself would reveal something), so the app remembers that it asked.
-    @AppStorage("healthAsked") private var healthAsked = false
+    // Set once the Garmin vitals were asked for too (HealthVitals.swift).
+    @AppStorage(HealthVitalsSource.askedKey) private var healthAsked = false
     @State private var refresh = 0
     @State private var showClaude = false
+    @State private var showLock = false
+    @AppStorage(GarminSource.worksKey) private var garminWorks = false
 
     var body: some View {
         ZStack {
@@ -28,9 +31,9 @@ struct ConnectView: View {
                             .font(.text(17, weight: .medium))
                     }
                     VStack(spacing: 4) {
-                        row(.heart, "Apple Health", "Steps, runs, sleep, mindful minutes. Garmin syncs in through Health.",
+                        row(.heart, "Apple Health", "Steps, runs, sleep, calories, heart rate, HRV, VO2 max. Garmin syncs in through Health.",
                             done: healthAsked) {
-                            healthAsked = await HealthKitSignalSource.requestAccess()
+                            healthAsked = await HealthVitalsSource.requestAccess()
                         }
                         row(.calendar, "Calendar", "Every calendar on this iPhone. Add Google in Settings → Calendar → Accounts.",
                             done: engine.day.hasCalendarAccess) {
@@ -47,12 +50,18 @@ struct ConnectView: View {
                                 await engine.setWakeAlarm(true, plan: arcs.dailyPlan())
                             }
                         }
+                        row(.watch, "Garmin Connect", "Body Battery, stress, sleep score and HRV from your Garmin account.",
+                            done: garminWorks, action: "Check") {
+                            garminWorks = await GarminSource.today() != nil
+                        }
                         row(.notice, "Claude", "Plans with you and adds quests, from the Claude app or Claude Code.",
                             done: false, action: "Set up") {
                             showClaude = true
                         }
-                        row(.lock, "Screen Time lock", "Locks chosen apps until you spend earned minutes. Needs a paid Apple developer account first.",
-                            done: false, available: false) {}
+                        row(.lock, "Screen Time lock", "Locks chosen apps until you spend earned minutes.",
+                            done: ScreenTimeLock.shared.isOn, action: "Set up") {
+                            showLock = true
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
@@ -68,6 +77,7 @@ struct ConnectView: View {
         }
         .foregroundStyle(Ink.washi)
         .sheet(isPresented: $showClaude) { ClaudeConnectView() }
+        .sheet(isPresented: $showLock) { ScreenTimeSetupView() }
     }
 
     private func row(_ glyph: Glyph, _ title: String, _ detail: String, done: Bool, available: Bool = true,

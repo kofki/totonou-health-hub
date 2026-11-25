@@ -5,6 +5,8 @@ import UserNotifications
 
 @main
 struct TotonouApp: App {
+    // Gives the app a UIKit app delegate, the only place the push token arrives (Push.swift).
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var engine: QuestEngine
     /// Made here rather than with `.modelContainer(for:)`, so code outside the
     /// views (a HealthKit wake-up while no screen is open) can reach the same database.
@@ -16,6 +18,7 @@ struct TotonouApp: App {
         let engine = QuestEngine(cloud: SupabaseConfig.makeStore())
         self.container = container
         _engine = State(initialValue: engine)
+        Push.refresh()
         HealthWatcher.shared.start {
             await engine.syncInBackground(container: container)
         }
@@ -113,7 +116,7 @@ struct RootView: View {
             guard (try? await Task.sleep(for: .seconds(1.5))) != nil, let player = players.first else { return }
             let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
             engine.publishWidget(player: player, quests: today)
-            await engine.refreshReminders(quests: today, plan: arcs.dailyPlan())
+            await engine.refreshReminders(quests: today, plan: arcs.dailyPlan(), player: player, arcs: Array(arcs))
             await engine.backUp(player: player, quests: today)
             await engine.shareWithClaude(context: context)
         }
@@ -140,6 +143,7 @@ struct RootView: View {
         await engine.importReminders(context: context, player: player)
         await engine.syncInBackground(container: context.container)
         await engine.applyClaudeChanges(context: context)
+        ScreenTimeLock.shared.refresh()
     }
 
     /// Changes whenever something worth saving changes.

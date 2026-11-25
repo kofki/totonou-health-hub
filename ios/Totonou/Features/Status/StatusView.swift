@@ -16,6 +16,7 @@ struct StatusView: View {
     @State private var confirmReset = false
     @State private var isResetting = false
     @AppStorage("soundsOn") private var soundsOn = true
+    @AppStorage(Push.enabledKey) private var claudeAlertsOn = false
 
     var body: some View {
         Screen {
@@ -95,8 +96,26 @@ struct StatusView: View {
                 get: { engine.remindersOn },
                 set: { on in
                     let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
-                    Task { await engine.setReminders(on, quests: today, plan: arcs.dailyPlan()) }
+                    Task { await engine.setReminders(on, quests: today, plan: arcs.dailyPlan(), player: players.first, arcs: Array(arcs)) }
                 }
+            ))
+            SettingRow(glyph: .notice, title: "Daily nudges", isOn: Binding(
+                get: { engine.dailyNudgesOn },
+                set: { on in
+                    let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
+                    Task { await engine.setNudges(daily: on, quests: today, player: players.first, arcs: Array(arcs)) }
+                }
+            ))
+            SettingRow(glyph: .flame, title: "Streak and reward alerts", isOn: Binding(
+                get: { engine.streakAlertsOn },
+                set: { on in
+                    let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
+                    Task { await engine.setNudges(streak: on, quests: today, player: players.first, arcs: Array(arcs)) }
+                }
+            ))
+            SettingRow(glyph: .bell, title: "Claude and coach alerts", isOn: Binding(
+                get: { claudeAlertsOn },
+                set: { on in Task { if on { claudeAlertsOn = await Push.enable() } else { await Push.disable() } } }
             ))
             SettingRow(glyph: .speaker, title: "Sounds", isOn: $soundsOn)
             backup

@@ -11,6 +11,8 @@
 		AA0000000000000000000002 /* TotonouCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000042 /* TotonouCore */; };
 		AA0000000000000000000003 /* TotonouWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000012 /* TotonouWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA0000000000000000000070 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000072 /* Supabase */; };
+		AA0000000000000000000080 /* TotonouMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000082 /* TotonouMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA000000000000000000008D /* TotonouCore in Frameworks */ = {isa = PBXBuildFile; productRef = AA000000000000000000008C /* TotonouCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -20,6 +22,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = AA0000000000000000000022;
 			remoteInfo = TotonouWidgetExtension;
+		};
+		AA0000000000000000000081 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA0000000000000000000030 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AA0000000000000000000087;
+			remoteInfo = TotonouMonitor;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -31,6 +40,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				AA0000000000000000000003 /* TotonouWidgetExtension.appex in Embed Foundation Extensions */,
+				AA0000000000000000000080 /* TotonouMonitor.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -42,6 +52,7 @@
 		AA0000000000000000000012 /* TotonouWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TotonouWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000013 /* TotonouCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = TotonouCore; sourceTree = "<group>"; };
 		AA0000000000000000000014 /* TotonouWidget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "TotonouWidget-Info.plist"; sourceTree = "<group>"; };
+		AA0000000000000000000082 /* TotonouMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TotonouMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,6 +64,11 @@
 		AA0000000000000000000016 /* TotonouWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = TotonouWidget;
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000083 /* TotonouMonitor */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TotonouMonitor;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +91,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA0000000000000000000084 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA000000000000000000008D /* TotonouCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -83,6 +107,7 @@
 			children = (
 				AA0000000000000000000015 /* Totonou */,
 				AA0000000000000000000016 /* TotonouWidget */,
+				AA0000000000000000000083 /* TotonouMonitor */,
 				AA0000000000000000000013 /* TotonouCore */,
 				AA000000000000000000001B /* Config */,
 				AA000000000000000000001A /* Products */,
@@ -94,6 +119,7 @@
 			children = (
 				AA0000000000000000000011 /* Totonou.app */,
 				AA0000000000000000000012 /* TotonouWidgetExtension.appex */,
+				AA0000000000000000000082 /* TotonouMonitor.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -122,6 +148,7 @@
 			);
 			dependencies = (
 				AA0000000000000000000027 /* PBXTargetDependency */,
+				AA0000000000000000000088 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AA0000000000000000000015 /* Totonou */,
@@ -158,6 +185,29 @@
 			productReference = AA0000000000000000000012 /* TotonouWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		AA0000000000000000000087 /* TotonouMonitor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000089 /* Build configuration list for PBXNativeTarget "TotonouMonitor" */;
+			buildPhases = (
+				AA0000000000000000000085 /* Sources */,
+				AA0000000000000000000084 /* Frameworks */,
+				AA0000000000000000000086 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AA0000000000000000000083 /* TotonouMonitor */,
+			);
+			name = TotonouMonitor;
+			packageProductDependencies = (
+				AA000000000000000000008C /* TotonouCore */,
+			);
+			productName = TotonouMonitor;
+			productReference = AA0000000000000000000082 /* TotonouMonitor.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -172,6 +222,9 @@
 						CreatedOnToolsVersion = 26.0;
 					};
 					AA0000000000000000000022 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					AA0000000000000000000087 = {
 						CreatedOnToolsVersion = 26.0;
 					};
 				};
@@ -196,6 +249,7 @@
 			targets = (
 				AA0000000000000000000021 /* Totonou */,
 				AA0000000000000000000022 /* TotonouWidgetExtension */,
+				AA0000000000000000000087 /* TotonouMonitor */,
 			);
 		};
 /* End PBXProject section */
@@ -209,6 +263,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AA0000000000000000000026 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA0000000000000000000086 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -232,6 +293,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA0000000000000000000085 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -239,6 +307,11 @@
 			isa = PBXTargetDependency;
 			target = AA0000000000000000000022 /* TotonouWidgetExtension */;
 			targetProxy = AA0000000000000000000004 /* PBXContainerItemProxy */;
+		};
+		AA0000000000000000000088 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA0000000000000000000087 /* TotonouMonitor */;
+			targetProxy = AA0000000000000000000081 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -402,6 +475,54 @@
 			};
 			name = Release;
 		};
+		AA000000000000000000008A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/TotonouMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U4YL483XHM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/TotonouMonitor-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = TotonouMonitor;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kenzo.totonou.monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AA000000000000000000008B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/TotonouMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U4YL483XHM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/TotonouMonitor-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = TotonouMonitor;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kenzo.totonou.monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -428,6 +549,15 @@
 			buildConfigurations = (
 				AA0000000000000000000065 /* Debug */,
 				AA0000000000000000000066 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000000000000000000089 /* Build configuration list for PBXNativeTarget "TotonouMonitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA000000000000000000008A /* Debug */,
+				AA000000000000000000008B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -465,6 +595,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AA0000000000000000000071 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
+		};
+		AA000000000000000000008C /* TotonouCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TotonouCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -44,9 +44,9 @@ not what was meant.
 | Shared logic | `ios/TotonouCore` Swift package, Swift Testing |
 | Cloud | Supabase (Postgres + Auth) via supabase-swift, behind `CloudStore`. Schema in `supabase/migrations/` |
 | Back end (planned) | Go on Cloud Run |
-| Data (planned) | Garmin Connect, HealthKit, Google Calendar, USDA FoodData Central |
+| Data | HealthKit, EventKit (calendars incl. Google, reminders), Garmin Connect Personal API (`garmin` function). USDA FoodData Central planned |
 | AI | Foundation Models on-device (`OnDeviceAI.swift`). Without Apple Intelligence: Claude on the owner's account through the Totonou MCP server (`supabase/functions/mcp`, `ClaudeLink.swift`, `ClaudeChanges.swift`) and the Mac coach relay (`scripts/coach-relay`). The paid-API `ai` function exists but has no key. Rule-based fallbacks under all |
-| Blocking (planned) | FamilyControls, ManagedSettings, DeviceActivity |
+| Blocking | FamilyControls, ManagedSettings, DeviceActivity (`ScreenTimeLock.swift`, `ios/TotonouMonitor` extension target) |
 
 ## Commands
 

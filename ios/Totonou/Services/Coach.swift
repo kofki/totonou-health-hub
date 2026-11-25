@@ -156,6 +156,14 @@ enum Coach {
         if let v = readings[.runKm], v > 0 { parts.append(String(format: "%.1f km run", v)) }
         if let v = readings[.sleepHours], v > 0 { parts.append(String(format: "%.1f h sleep last night", v)) }
         if let v = readings[.focusMinutes], v > 0 { parts.append("\(Int(v)) mindful minutes") }
+        if let v = readings[.activeCalories], v > 0 { parts.append("\(Int(v)) active kcal") }
+        if let v = readings[.restingHeartRate] { parts.append("resting heart rate \(Int(v)) bpm") }
+        if let v = readings[.hrv] { parts.append("HRV \(Int(v)) ms") }
+        if let v = readings[.vo2Max] { parts.append(String(format: "VO2 max %.1f", v)) }
+        if let v = readings[.bodyBattery] { parts.append("Body Battery \(Int(v))") }
+        if let v = readings[.stress] { parts.append("average stress \(Int(v))") }
+        if let v = readings[.sleepScore] { parts.append("sleep score \(Int(v))") }
+        if let v = readings[.screenMinutes] { parts.append("at least \(Int(v)) min on the apps chosen for the Screen Time lock") }
         return parts.isEmpty ? "Apple Health today: no data." : "Apple Health today: " + parts.joined(separator: ", ") + "."
     }
 

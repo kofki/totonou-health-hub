@@ -28,6 +28,7 @@ the same idea already working somewhere else in the project.
 | 16 | Merge the daily plans | `ios/TotonouCore/Sources/TotonouCore/Exercises/Exercise16_PlanMerger.swift` | "Every day" on the Arcs tab lists all your arcs' quests in time order, with no repeats; reminders and the wake alarm use the same list | `DayPlanning.swift` → `DayPlanner`, `Models/Models.swift` → `dailyPlan` |
 | 17 | Finished arc row | `ios/Totonou/Exercises/Exercise17_FinishedArcRow.swift` | Finished arcs on the Arcs tab show how they ended, how long they ran and what you got done (now only a grey title) | `Features/Arcs/ArcsView.swift` → `ArcRow`, `Models/Models.swift` → `Arc` |
 | 18 | Objective row | `ios/Totonou/Exercises/Exercise18_ObjectiveRow.swift` | Each objective in an arc shows its count as pips, turns jade when met, and unfolds the quests that count toward it (now one plain line) | `Features/Arcs/ArcsView.swift` → `ArcRow`, `CheckBox`; `Models/Models.swift` → `Objective` |
+| 19 | Unlock countdown | `ios/Totonou/Exercises/Exercise19_UnlockCountdown.swift` | The Screen Time lock screen counts down the minutes you spent, with a bar that empties (now a fixed "Open until" time) | `App/Components.swift` → `ProgressLine` |
 
 Exercises 8 and 9 are short and visual. They fit well between 3 and 4, once you
 are comfortable with the Xcode canvas.

@@ -339,6 +339,8 @@ enum ClaudeSnapshot {
             "quests": quests.map(questJSON),
             "coachFacts": review?.facts ?? [],
             "healthToday": Dictionary(uniqueKeysWithValues: readings.map { ($0.key.rawValue, $0.value) }),
+            // Daily minutes on the apps chosen for the Screen Time lock, last 30 finished days.
+            "screenTimeHistory": ScreenTimeLock.usageHistory().suffix(30).map { ["day": $0.day, "minutes": $0.minutes] as [String: Any] },
         ]
         if let player {
             let level = player.progress.level

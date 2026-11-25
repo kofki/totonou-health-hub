@@ -4,10 +4,9 @@ import TotonouCore
 
 /// What you see instead of Instagram.
 ///
-/// This is a preview inside the app. The real intercept is a ShieldConfiguration
-/// extension driven by the Screen Time API (FamilyControls, ManagedSettings,
-/// DeviceActivity), which needs a paid Apple Developer account and Apple's
-/// Family Controls entitlement before it can run on a device.
+/// Spending minutes here opens the apps locked by the Screen Time lock
+/// (ScreenTimeLock.swift) for that long. iOS shows its own lock screen on the
+/// locked apps; a custom one would be a ShieldConfiguration extension.
 struct ShieldView: View {
     let quest: Quest?
     let locked: Bool

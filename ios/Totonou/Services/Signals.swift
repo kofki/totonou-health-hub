@@ -7,6 +7,27 @@ enum SignalKey: String {
     case sleepHours
     case runKm
     case focusMinutes
+    /// Active calories burned today, kcal.
+    case activeCalories
+    // Readings for the coach and Claude, not quest targets: lower is better
+    // for some, so "reach this value" does not fit. Garmin and other watches
+    // fill them in through Apple Health (HealthVitals.swift).
+    /// Resting heart rate, beats per minute, the latest reading.
+    case restingHeartRate
+    /// Heart rate variability (SDNN), milliseconds, the latest reading.
+    case hrv
+    /// VO2 max, ml/kg/min, the latest estimate.
+    case vo2Max
+    // From Garmin only (GarminSource.swift).
+    /// Body Battery, 0-100, the latest value.
+    case bodyBattery
+    /// Average stress for the day, 0-100.
+    case stress
+    /// Last night's sleep score, 0-100.
+    case sleepScore
+    /// Minutes the apps chosen for the Screen Time lock were used today, in
+    /// 15-minute steps (ScreenTimeLock.swift). Lower is better.
+    case screenMinutes
 }
 
 /// Anything that can report today's readings: Garmin, HealthKit, Google Calendar.
@@ -33,6 +54,9 @@ enum SignalTarget {
         }
         if text.contains("run") && !text.contains("brun") {
             return (.runKm, number(before: "k", in: text) ?? 3)
+        }
+        if text.contains("kcal") || text.contains("calorie") {
+            return (.activeCalories, number(before: "kcal", in: text) ?? number(before: "cal", in: text) ?? 400)
         }
         if ["meditat", "mindful", "breath"].contains(where: text.contains) {
             return (.focusMinutes, number(before: "min", in: text) ?? 10)

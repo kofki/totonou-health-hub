@@ -9,6 +9,14 @@ extension SignalKey {
         case .runKm: "Run \(target.formatted(.number.precision(.fractionLength(0...1)))) km"
         case .focusMinutes: "\(Int(target)) mindful minutes"
         case .sleepHours: "\(target.formatted(.number.precision(.fractionLength(0...1)))) hours of sleep"
+        case .activeCalories: "\(Int(target)) active kcal"
+        case .restingHeartRate: "Resting heart rate \(Int(target))"
+        case .hrv: "HRV \(Int(target)) ms"
+        case .vo2Max: "VO2 max \(Int(target))"
+        case .bodyBattery: "Body Battery \(Int(target))"
+        case .stress: "Stress \(Int(target))"
+        case .sleepScore: "Sleep score \(Int(target))"
+        case .screenMinutes: "\(Int(target)) min on chosen apps"
         }
     }
 
@@ -16,7 +24,7 @@ extension SignalKey {
         switch self {
         case .steps: Int(value).formatted()
         case .runKm, .sleepHours: value.formatted(.number.precision(.fractionLength(1)))
-        case .focusMinutes: "\(Int(value))"
+        case .focusMinutes, .activeCalories, .restingHeartRate, .hrv, .vo2Max, .bodyBattery, .stress, .sleepScore, .screenMinutes: "\(Int(value))"
         }
     }
 
@@ -26,6 +34,12 @@ extension SignalKey {
         case .runKm: "km"
         case .focusMinutes: "min"
         case .sleepHours: "h"
+        case .activeCalories: "kcal"
+        case .restingHeartRate: "bpm"
+        case .hrv: "ms"
+        case .vo2Max: "ml/kg/min"
+        case .bodyBattery, .stress, .sleepScore: "/100"
+        case .screenMinutes: "min"
         }
     }
 }
