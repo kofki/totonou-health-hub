@@ -67,6 +67,8 @@ struct ArcRecord: Sendable, Equatable {
         var period: String
         var target: Int
         var detail: String
+        /// Quest titles from other arcs that also count toward it.
+        var sharedQuests: [String] = []
     }
 
     var title: String
@@ -173,7 +175,8 @@ extension Arc {
                   startDate: startDate, endDate: kind == .objective ? nil : endDate, endedAt: endedAt,
                   questPlan: questPlan,
                   objectives: orderedObjectives.map {
-                      ArcRecord.ObjectiveRecord(title: $0.title, period: $0.periodRaw, target: $0.target, detail: $0.detail)
+                      ArcRecord.ObjectiveRecord(title: $0.title, period: $0.periodRaw, target: $0.target, detail: $0.detail,
+                                                sharedQuests: $0.sharedTitles)
                   })
     }
 }

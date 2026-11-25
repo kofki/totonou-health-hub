@@ -339,6 +339,15 @@ final class QuestEngine {
 
     // MARK: Arcs
 
+    /// Let quests with this title, from any other arc, also count toward an
+    /// objective (or stop them). It changes counting only: XP is paid once.
+    func share(_ title: String, with objective: Objective, on: Bool) {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        objective.sharedTitles.removeAll { $0.compare(title, options: .caseInsensitive) == .orderedSame }
+        if on { objective.sharedTitles.append(title) }
+    }
+
     /// Tick a goal as reached, or untick it. Only while the arc is running.
     func setGoal(_ goal: String, done: Bool, arc: Arc) {
         guard arc.isActive(), arc.goals.contains(goal) else { return }

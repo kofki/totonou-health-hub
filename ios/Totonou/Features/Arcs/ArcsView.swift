@@ -142,6 +142,9 @@ private struct ArcFigure: View {
 private struct PlanLine: View {
     let idea: QuestIdea
 
+    /// Objectives of other arcs this quest also counts toward.
+    var shared: [Objective] = []
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(idea.clock).font(.number(16)).foregroundStyle(Ink.ai).frame(width: 80, alignment: .leading)
@@ -150,6 +153,8 @@ private struct PlanLine: View {
                 Text(idea.title).font(.text(17))
                 Text([idea.daysLabel, idea.objective, planStepsLabel(idea.steps)].compactMap { $0 }
                     .joined(separator: " · ")).caption(size: 13)
+                // Exercise 22 writes this line.
+                if let label = sharedArcsLabel(shared) { Text(label).caption(Ink.ai, size: 13) }
             }
             Spacer()
         }
@@ -182,6 +187,38 @@ private struct ArcDetail: View {
     @State private var showBossComposer = false
     @State private var confirmEnd = false
     @State private var confirmDelete = false
+    @Query private var allArcs: [Arc]
+
+    /// Daily quests of the other running arcs: what this arc's objectives can also count.
+    private var otherPlans: [(arc: Arc, title: String)] {
+        allArcs.active().filter { $0 !== arc }.flatMap { other in other.plan.map { (other, $0.title) } }
+    }
+
+    /// Under an objective: the quests from other arcs it also counts, and a
+    /// menu to pick more. A Menu shows its choices only when tapped.
+    @ViewBuilder private func shared(_ objective: Objective) -> some View {
+        if !objective.sharedTitles.isEmpty {
+            Text("Also counts: " + objective.sharedTitles.joined(separator: ", ")).caption(size: 13)
+        }
+        if arc.isActive() && !otherPlans.isEmpty {
+            Menu {
+                ForEach(otherPlans, id: \.title) { item in
+                    Button {
+                        engine.share(item.title, with: objective, on: !objective.counts(title: item.title))
+                    } label: {
+                        // A tick on the ones already shared (menus only show text).
+                        Text((objective.counts(title: item.title) ? "✓ " : "") + "\(item.title) · \(item.arc.title)")
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    GlyphIcon(.plus, size: 14, tint: Ink.ai)
+                    Text("Also count a quest from another arc").caption(Ink.ai, size: 14)
+                }
+                .padding(.bottom, 8)
+            }
+        }
+    }
 
     var body: some View {
         SheetFrame(title: arc.title) {
@@ -206,7 +243,10 @@ private struct ArcDetail: View {
                 VStack(alignment: .leading, spacing: 4) {
                     SectionHeader("Objectives")
                     // Exercise 18 draws each row.
-                    ForEach(arc.orderedObjectives) { objective in ObjectiveRow(objective: objective) }
+                    ForEach(arc.orderedObjectives) { objective in
+                        ObjectiveRow(objective: objective)
+                        shared(objective)
+                    }
                 }
             }
 
@@ -237,7 +277,9 @@ private struct ArcDetail: View {
             if !arc.plan.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     SectionHeader("Plan")
-                    ForEach(arc.plan) { idea in PlanLine(idea: idea) }
+                    ForEach(arc.plan) { idea in
+                        PlanLine(idea: idea, shared: allArcs.sharedObjectives(for: idea.title, home: arc))
+                    }
                 }
             }
 

@@ -206,6 +206,8 @@ struct SystemButtonStyle: ButtonStyle {
 struct StatRadar: View {
     /// One value per `Stat.allCases`, each 0...1.
     let values: [Double]
+    /// The points behind each value, shown at its corner. Empty hides them.
+    var numbers: [Int] = []
 
     @State private var growth: Double = 0
 
@@ -221,8 +223,15 @@ struct StatRadar: View {
                     .stroke(Ink.ai, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
                     .shadow(color: Ink.ai.opacity(0.6), radius: 6)
                 ForEach(Array(Stat.allCases.enumerated()), id: \.element) { index, stat in
-                    GlyphIcon(stat.glyph, size: 20, tint: Ink.washi)
-                        .position(RadarShape.point(index, scale: 1, in: rect, outset: 20))
+                    VStack(spacing: 2) {
+                        GlyphIcon(stat.glyph, size: 20, tint: Ink.washi)
+                        if index < numbers.count {
+                            Text(stat.title).caption(size: 12)
+                            Text("\(numbers[index])").font(.number(15)).foregroundStyle(Ink.washi)
+                        }
+                    }
+                    .fixedSize()
+                    .position(RadarShape.point(index, scale: 1, in: rect, outset: numbers.isEmpty ? 20 : 34))
                 }
             }
         }
@@ -246,7 +255,7 @@ private struct RadarShape: Shape {
     }
 
     static func point(_ index: Int, scale: Double, in rect: CGRect, outset: CGFloat = 0) -> CGPoint {
-        let radius = min(rect.width, rect.height) / 2 - 30
+        let radius = min(rect.width, rect.height) / 2 - 44
         let angle = -Double.pi / 2 + Double(index) * 2 * .pi / 5
         let reach = radius * scale + outset
         return CGPoint(x: rect.midX + cos(angle) * reach, y: rect.midY + sin(angle) * reach)

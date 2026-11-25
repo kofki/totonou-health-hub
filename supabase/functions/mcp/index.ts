@@ -76,6 +76,12 @@ steps under "steps". In get_overview a quest with steps lists them under \
 "steps", with "stepsDone" and "lockedUntilStepsDone"; each step also appears in quests with "partOf". \
 To remove a step, use remove_quest with its title and its quest's date and time.
 
+Arcs can share quests. When a new arc overlaps what the user already does (a Winter Arc next to \
+Healthy body and Founder), do not copy those quests: give the new arc's objectives "sharedQuests" \
+(or use share_quest) so the existing quests count for it too, and add only what is new on top. \
+In get_overview an objective lists "sharedQuests", and a quest or plan entry that counts elsewhere \
+lists "alsoCountsFor".
+
 Ask the user what they want before creating an arc, and tell them what you added afterwards. Changes \
 reach the phone the next time the Totonou app is opened; until then get_overview lists them as pending.`;
 
@@ -130,6 +136,12 @@ const objectiveProperties = {
   period: { type: "string", enum: PERIODS, description: "day or week: the count starts again each period. arc: once in total." },
   count: { type: "integer", description: "How many per period, 1 to 50." },
   detail: { type: "string", description: "What counts as one, e.g. '45 min, compound lifts, log the weights'." },
+  sharedQuests: {
+    type: "array",
+    items: { type: "string" },
+    description: "Exact titles of quests in OTHER arcs that also count toward this objective, so a new arc builds " +
+      "on what the user already does instead of copying it. Finishing one counts here too (XP is paid once).",
+  },
 };
 
 const TOOLS = [
@@ -248,6 +260,22 @@ const TOOLS = [
         steps: questProperties.steps,
       },
       required: ["title", "steps"],
+    },
+  },
+  {
+    name: "share_quest",
+    title: "Let a quest count for another arc",
+    description: "Make a quest (or daily quest) from one arc also count toward an objective of another arc, or " +
+      "stop it with remove. The quest stays in its own arc and shows on Today once.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        quest: { type: "string", description: "Exact title of the quest or daily quest, from get_overview." },
+        arc: { type: "string", description: "Exact title of the arc whose objective it should also count toward." },
+        objective: { type: "string", description: "Exact title of that arc's objective." },
+        remove: { type: "boolean", description: "True to stop it counting there." },
+      },
+      required: ["quest", "arc", "objective"],
     },
   },
   {
@@ -410,6 +438,9 @@ function objective(input: unknown): Json {
   }
   const cleaned: Json = { title: str(raw.title, "title", 80), period: oneOf(raw.period, "period", PERIODS), count };
   if (raw.detail !== undefined) cleaned.detail = str(raw.detail, "detail", 200);
+  if (raw.sharedQuests !== undefined) {
+    cleaned.sharedQuests = list(raw.sharedQuests, "sharedQuests", 0, 10).map((t) => str(t, "shared quest title", 80));
+  }
   return cleaned;
 }
 
@@ -529,6 +560,15 @@ async function call(db: SupabaseClient, userID: string, name: string, args: Json
       if (args.arc !== undefined) payload.arc = str(args.arc, "arc", 80);
       if (args.date !== undefined) payload.date = date(args.date, "date");
       return await queue(db, userID, [{ kind: "set_steps", payload }]);
+    }
+    case "share_quest": {
+      const payload: Json = {
+        title: str(args.quest, "quest", 80),
+        arc: str(args.arc, "arc", 80),
+        objective: str(args.objective, "objective", 80),
+        remove: args.remove === true,
+      };
+      return await queue(db, userID, [{ kind: "share_quest", payload }]);
     }
     case "end_arc":
       return await queue(db, userID, [{ kind: "end_arc", payload: { arc: str(args.arc, "arc", 80) } }]);

@@ -104,6 +104,7 @@ private struct ClaudeApplier {
         case .endArc: return endArc(p)
         case .addObjective: return addObjective(p)
         case .setSteps: return setSteps(p)
+        case .shareQuest: return shareQuest(p)
         case .coachMessage:
             guard let text = p.text else { return "skipped: no text" }
             ClaudeCoachNote.save(text, at: now)
@@ -264,13 +265,23 @@ private struct ClaudeApplier {
         return "applied"
     }
 
+    /// Let a quest from another arc count toward an objective too, or stop it.
+    private func shareQuest(_ p: ClaudeChange.Payload) -> String {
+        guard let arc = arc(named: p.arc), arc.isActive(on: now) else { return "skipped: no running arc called \(p.arc ?? "")" }
+        guard let objective = arc.objective(named: p.objective) else { return "skipped: \(arc.title) has no objective called \(p.objective ?? "")" }
+        guard let title = p.title else { return "skipped: no quest title" }
+        engine.share(title, with: objective, on: p.remove != true)
+        return "applied"
+    }
+
     private func addObjective(_ p: ClaudeChange.Payload) -> String {
         guard let arc = arc(named: p.arc), arc.isActive(on: now) else { return "skipped: no running arc called \(p.arc ?? "")" }
         guard let title = p.title else { return "skipped: no title" }
         guard arc.objective(named: title) == nil else { return "skipped: the arc already has it" }
         let objective = Objective(title: title, period: p.period.flatMap(ObjectivePeriod.init(rawValue:)) ?? .week,
                                   target: p.count ?? 1, detail: p.detail ?? "",
-                                  order: (arc.objectives.map(\.order).max() ?? -1) + 1)
+                                  order: (arc.objectives.map(\.order).max() ?? -1) + 1,
+                                  sharedTitles: p.sharedQuests ?? [])
         context.insert(objective)
         arc.objectives.append(objective)
         return "applied"
@@ -296,7 +307,7 @@ private struct ClaudeApplier {
         let objectives = (p.objectives ?? []).compactMap { item -> ObjectiveIdea? in
             guard let title = item.title else { return nil }
             return ObjectiveIdea(title: title, period: item.period.flatMap(ObjectivePeriod.init(rawValue:)) ?? .week,
-                                 target: item.count ?? 1, detail: item.detail ?? "")
+                                 target: item.count ?? 1, detail: item.detail ?? "", sharedTitles: item.sharedQuests ?? [])
         }
         let draft = ArcDraft(kanji: "道", goals: p.goals ?? [], objectives: objectives,
                              quests: (p.dailyQuests ?? []).compactMap(idea), byAI: true)
@@ -359,7 +370,14 @@ enum ClaudeSnapshot {
                 "done": objective.done(on: now),
                 "plannedStillOpen": objective.planned(on: now),
                 "met": objective.isMet(on: now),
+                // Quests from other arcs that also count here, by title.
+                "sharedQuests": objective.sharedTitles,
             ]
+        }
+
+        /// "Winter Arc: Strength sessions" for each other arc's objective a quest also counts toward.
+        func sharedLabels(_ title: String, home: Arc?) -> [String] {
+            arcs.sharedObjectives(for: title, home: home, on: now).map { "\($0.arc?.title ?? ""): \($0.title)" }
         }
 
         func arcJSON(_ arc: Arc) -> [String: Any] {
@@ -377,6 +395,8 @@ enum ClaudeSnapshot {
                     var line: [String: Any] = ["title": idea.title, "stat": idea.stat.rawValue, "rank": idea.rank.rawValue,
                                                "time": idea.clock, "minutes": idea.minutes, "days": idea.daysLabel]
                     if let objective = idea.objective { line["objective"] = objective }
+                    let shared = sharedLabels(idea.title, home: arc)
+                    if !shared.isEmpty { line["alsoCountsFor"] = shared }
                     if !idea.steps.isEmpty {
                         line["steps"] = idea.steps.map { ["title": $0.title, "minutes": $0.minutes, "rank": $0.rank.rawValue] }
                     }
@@ -410,6 +430,8 @@ enum ClaudeSnapshot {
             if let arc = quest.arc { json["arc"] = arc.title }
             if let objective = quest.objective { json["objective"] = objective.title }
             if let parent = quest.parent { json["partOf"] = parent.title }
+            let shared = sharedLabels(quest.title, home: quest.arc)
+            if !shared.isEmpty { json["alsoCountsFor"] = shared }
             if !quest.subquests.isEmpty {
                 // The quest waits for these; each one pays its own reward.
                 json["steps"] = quest.orderedSubquests.map { step -> [String: Any] in

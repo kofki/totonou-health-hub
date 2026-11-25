@@ -287,23 +287,49 @@ final class Objective {
     @Relationship(deleteRule: .nullify, inverse: \Quest.objective)
     var quests: [Quest] = []
 
+    /// Titles of quests that live in other arcs and also count toward this one,
+    /// so a new arc can build on what you already do ("Upper body" from
+    /// Immortal counts for Winter Arc too) instead of copying it. Each quest
+    /// stays on Today once and pays XP once; only the counting is shared.
+    var sharedTitles: [String] = []
+
     init(title: String, period: ObjectivePeriod, target: Int, detail: String = "", order: Int = 0,
-         arc: Arc? = nil, createdAt: Date = .now) {
+         arc: Arc? = nil, sharedTitles: [String] = [], createdAt: Date = .now) {
         self.title = title
         self.periodRaw = period.rawValue
         self.target = max(target, 1)
         self.detail = detail
         self.order = order
         self.arc = arc
+        self.sharedTitles = sharedTitles
         self.createdAt = createdAt
     }
 
     var period: ObjectivePeriod { ObjectivePeriod(rawValue: periodRaw) ?? .week }
 
+    /// True when a quest with this title from another arc counts here.
+    func counts(title: String) -> Bool {
+        sharedTitles.contains { $0.compare(title, options: .caseInsensitive) == .orderedSame }
+    }
+
+    /// Linked quests, plus shared ones from other arcs, scheduled in the window.
+    /// Shared quests only count while this arc runs: what you did before it
+    /// started belongs to the other arc alone.
+    private func counted(in window: DateInterval) -> [Quest] {
+        guard !sharedTitles.isEmpty, let context = modelContext else { return quests }
+        // Every model knows the context it lives in, so it can look up others.
+        let start = max(window.start, arc?.startDate ?? window.start)
+        let end = min(window.end, arc?.endDate ?? window.end)
+        guard start < end else { return quests }
+        let found = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= start && $0.scheduledAt < end }))) ?? []
+        let shared = found.filter { $0.objective !== self && $0.arc !== arc && counts(title: $0.title) }
+        return quests + shared
+    }
+
     /// Linked quests finished in the period that contains `date`.
     func done(on date: Date = .now) -> Int {
         let window = period.window(containing: date, arc: arc)
-        return quests.filter { quest in
+        return counted(in: window).filter { quest in
             guard let finished = quest.completedAt else { return false }
             return window.contains(finished)
         }.count
@@ -312,7 +338,7 @@ final class Objective {
     /// Linked quests still open in the same period: what is planned toward it.
     func planned(on date: Date = .now) -> Int {
         let window = period.window(containing: date, arc: arc)
-        return quests.filter { $0.isOpen && window.contains($0.scheduledAt) }.count
+        return counted(in: window).filter { $0.isOpen && window.contains($0.scheduledAt) }.count
     }
 
     func isMet(on date: Date = .now) -> Bool { done(on: date) >= target }
@@ -487,6 +513,11 @@ extension Sequence where Element == Arc {
     func dailyPlan(on date: Date = .now) -> [QuestIdea] {
         // Only the quests planned for that weekday.
         PlanMerger.merged(active(on: date).map { $0.plan.filter { $0.runs(on: date) } })
+    }
+
+    /// Objectives of other running arcs that a quest with this title also counts toward.
+    func sharedObjectives(for title: String, home: Arc?, on date: Date = .now) -> [Objective] {
+        active(on: date).filter { $0 !== home }.flatMap(\.orderedObjectives).filter { $0.counts(title: title) }
     }
 }
 

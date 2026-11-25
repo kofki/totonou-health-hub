@@ -63,7 +63,7 @@ enum QuestPlanner {
             // Appended rather than passing `arc:`, so the arc's list holds it
             // before the quests below look it up by name.
             let objective = Objective(title: idea.title, period: idea.period, target: idea.target,
-                                      detail: idea.detail, order: order)
+                                      detail: idea.detail, order: order, sharedTitles: idea.sharedTitles)
             context.insert(objective)
             arc.objectives.append(objective)
         }

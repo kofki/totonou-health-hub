@@ -68,6 +68,12 @@ struct QuestInfoWindow: View {
     let quest: Quest
     let player: Player
     let todays: [Quest]
+    @Query private var arcs: [Arc]
+
+    /// Objectives of other arcs this quest also counts toward.
+    private var sharedObjectives: [Objective] {
+        arcs.sharedObjectives(for: quest.title, home: quest.arc, on: quest.scheduledAt)
+    }
     let close: () -> Void
 
     @Environment(QuestEngine.self) private var engine
@@ -142,6 +148,10 @@ struct QuestInfoWindow: View {
                 }
             }
             Text("TIME LIMIT: \(quest.scheduledAt.clock) – \(quest.dueAt.clock)").font(.hud(15, weight: .semibold))
+            ForEach(sharedObjectives) { objective in
+                Text("ALSO COUNTS FOR \(objective.arc?.title.uppercased() ?? "") · \(objective.title.uppercased())")
+                    .font(.hud(14, weight: .semibold)).opacity(0.85)
+            }
             if quest.source != .manual && quest.source != .health {
                 Text("FROM \(quest.source.name.uppercased())").font(.hud(14, weight: .semibold)).opacity(0.85)
             }

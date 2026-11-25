@@ -26,10 +26,11 @@ struct StatusView: View {
                     newName = player.name
                     isRenaming = true
                 }
+                // Right under the Status window, so the shape of your stats is the first thing you see.
+                stats(player)
                 CharacterProfile(player: player, quests: quests)
                 skills(player)
                 week(player)
-                stats(player)
                 Button { showConnect = true } label: {
                     HStack(spacing: 8) {
                         GlyphIcon(.sync, size: 18)
@@ -191,8 +192,9 @@ struct StatusView: View {
         let ceiling = Double(max(values.max() ?? 1, 1)) * 1.15
         return VStack(alignment: .leading, spacing: 16) {
             SectionHeader("Stats")
-            StatRadar(values: values.map { Double($0) / ceiling })
-                .frame(maxWidth: 260)
+            // A small floor, so a stat at 0 still gives the shape a corner instead of a line.
+            StatRadar(values: values.map { 0.08 + 0.92 * Double($0) / ceiling }, numbers: values)
+                .frame(maxWidth: 320)
                 .frame(maxWidth: .infinity)
         }
     }

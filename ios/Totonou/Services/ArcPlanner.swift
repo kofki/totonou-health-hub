@@ -112,6 +112,8 @@ struct ObjectiveIdea: Sendable, Equatable, Identifiable {
     var period: ObjectivePeriod
     var target: Int
     var detail: String = ""
+    /// Quests from other arcs that also count toward it, by title.
+    var sharedTitles: [String] = []
 
     var id: String { title }
     /// "4 a week", "3 a day", "12 in total".
