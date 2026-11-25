@@ -117,7 +117,7 @@ struct RootView: View {
             let today = quests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
             engine.publishWidget(player: player, quests: today)
             await engine.refreshReminders(quests: today, plan: arcs.dailyPlan(), player: player, arcs: Array(arcs))
-            await engine.backUp(player: player, quests: today)
+            await engine.backUp(player: player, quests: today, arcs: Array(arcs))
             await engine.shareWithClaude(context: context)
         }
         .task {

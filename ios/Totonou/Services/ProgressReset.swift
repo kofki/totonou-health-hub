@@ -43,7 +43,8 @@ extension QuestEngine {
         let remaining = (try? context.fetch(FetchDescriptor<Quest>())) ?? []
         let todays = remaining.filter { Calendar.current.isDate($0.scheduledAt, inSameDayAs: now) }
         try? await cloud.eraseQuests()
-        await backUp(player: fresh, quests: todays)
+        let arcs = (try? context.fetch(FetchDescriptor<Arc>())) ?? []
+        await backUp(player: fresh, quests: todays, arcs: arcs)
         publishWidget(player: fresh, quests: todays)
         await shareWithClaude(context: context, now: now)
     }

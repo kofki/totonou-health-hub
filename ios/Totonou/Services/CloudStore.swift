@@ -49,6 +49,37 @@ struct QuestRecord: Sendable, Equatable {
     var completedAt: Date?
     var failedAt: Date?
     var autoCompleted: Bool
+    /// Titles of what the quest belongs to. Defaults keep older call sites compiling.
+    var arc: String? = nil
+    var objective: String? = nil
+    /// Set on a step: the quest it unlocks, by title and start.
+    var parentTitle: String? = nil
+    var parentScheduledAt: Date? = nil
+    /// The Health or Garmin reading that completes it, and the value to reach.
+    var signalKey: String? = nil
+    var target: Double? = nil
+}
+
+/// An arc, in a shape that can cross the network.
+struct ArcRecord: Sendable, Equatable {
+    struct ObjectiveRecord: Sendable, Equatable, Encodable {
+        var title: String
+        var period: String
+        var target: Int
+        var detail: String
+    }
+
+    var title: String
+    var kind: String
+    var manifesto: String
+    var goals: [String]
+    var goalsDone: [String]
+    var startDate: Date
+    /// Nil for an objective arc, which has no end date.
+    var endDate: Date?
+    var endedAt: Date?
+    var questPlan: [String]
+    var objectives: [ObjectiveRecord]
 }
 
 protocol CloudStore: Sendable {
@@ -56,6 +87,7 @@ protocol CloudStore: Sendable {
     func connect() async throws
     func save(profile: ProfileRecord) async throws
     func save(quests: [QuestRecord]) async throws
+    func save(arcs: [ArcRecord]) async throws
     /// The profile stored in the cloud, or nil if there is none yet.
     func loadProfile() async throws -> ProfileRecord?
     /// The skill catalogue (the `skills` table). Readable by everyone signed in.
@@ -72,6 +104,7 @@ actor MockCloudStore: CloudStore {
     func connect() async throws {}
     func save(profile: ProfileRecord) async throws { self.profile = profile }
     func save(quests: [QuestRecord]) async throws { self.quests = quests }
+    func save(arcs: [ArcRecord]) async throws {}
     func loadProfile() async throws -> ProfileRecord? { profile }
     func loadSkills() async throws -> [SkillDefinition] { [] }
     func eraseQuests() async throws { quests = [] }
@@ -128,6 +161,19 @@ extension Quest {
         QuestRecord(title: title, stat: statRaw, rank: rankRaw, source: sourceRaw,
                     isCritical: isCritical, isRecovery: isRecovery, scheduledAt: scheduledAt,
                     durationMinutes: durationMinutes, completedAt: completedAt, failedAt: failedAt,
-                    autoCompleted: autoCompleted)
+                    autoCompleted: autoCompleted, arc: arc?.title, objective: objective?.title,
+                    parentTitle: parent?.title, parentScheduledAt: parent?.scheduledAt,
+                    signalKey: signalKey, target: target)
+    }
+}
+
+extension Arc {
+    var record: ArcRecord {
+        ArcRecord(title: title, kind: kindRaw, manifesto: manifesto, goals: goals, goalsDone: goalsDone,
+                  startDate: startDate, endDate: kind == .objective ? nil : endDate, endedAt: endedAt,
+                  questPlan: questPlan,
+                  objectives: orderedObjectives.map {
+                      ArcRecord.ObjectiveRecord(title: $0.title, period: $0.periodRaw, target: $0.target, detail: $0.detail)
+                  })
     }
 }

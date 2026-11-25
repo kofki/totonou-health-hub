@@ -189,12 +189,17 @@ private struct ClaudeApplier {
         }
         if let rank = p.rank.flatMap(Rank.init(rawValue:)) { step.rankRaw = rank.rawValue }
         if let stat = p.stat.flatMap(Stat.init(rawValue:)) { step.statRaw = stat.rawValue }
+        // A step counts toward its quest's objective unless Claude names another one.
+        if let named = parent.arc?.objective(named: p.objective) { step.objective = named }
+        if p.mustDo == true { step.isCritical = true }
         return "applied"
     }
 
     private func removeQuest(_ p: ClaudeChange.Payload) -> String {
         guard let time = moment(date: p.date, time: p.time), let title = p.title else { return "skipped: bad date or time" }
-        let quests = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt == time }))) ?? []
+        // The whole minute: steps start a few seconds after their quest, to keep their order.
+        let end = time.addingTimeInterval(60)
+        let quests = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= time && $0.scheduledAt < end }))) ?? []
         guard let quest = quests.first(where: { $0.title.compare(title, options: .caseInsensitive) == .orderedSame }) else {
             return "skipped: no such quest"
         }
@@ -361,7 +366,14 @@ enum ClaudeSnapshot {
             if let arc = quest.arc { json["arc"] = arc.title }
             if let objective = quest.objective { json["objective"] = objective.title }
             if let parent = quest.parent { json["partOf"] = parent.title }
-            if !quest.subquests.isEmpty { json["steps"] = "\(quest.subquestsDone)/\(quest.subquests.count) done" }
+            if !quest.subquests.isEmpty {
+                // The quest waits for these; each one pays its own reward.
+                json["steps"] = quest.orderedSubquests.map { step -> [String: Any] in
+                    ["title": step.title, "done": step.isDone, "rank": step.rankRaw, "minutes": step.durationMinutes]
+                }
+                json["stepsDone"] = "\(quest.subquestsDone)/\(quest.subquests.count)"
+                json["lockedUntilStepsDone"] = quest.isBlocked
+            }
             if quest.isCritical { json["mustDo"] = true }
             if let finished = quest.completedAt { json["finishedAt"] = clock(finished) }
             return json

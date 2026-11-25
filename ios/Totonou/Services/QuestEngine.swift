@@ -232,7 +232,7 @@ final class QuestEngine {
 
     /// Copy the player and today's quests to the cloud. The first time it runs
     /// it also looks for a cloud profile that is further along and adopts it.
-    func backUp(player: Player, quests: [Quest]) async {
+    func backUp(player: Player, quests: [Quest], arcs: [Arc] = []) async {
         guard !(cloud is MockCloudStore) else { return }
         cloudState = .syncing
         do {
@@ -250,6 +250,8 @@ final class QuestEngine {
             // the SwiftData objects themselves cannot.
             try await cloud.save(profile: player.record)
             try await cloud.save(quests: quests.map(\.record))
+            // Arcs only live on the phone otherwise; this is their backup.
+            try await cloud.save(arcs: arcs.map(\.record))
             if resetPending { UserDefaults.standard.set(false, forKey: ProgressReset.pendingKey) }
             cloudState = .synced(.now)
         } catch is CancellationError {

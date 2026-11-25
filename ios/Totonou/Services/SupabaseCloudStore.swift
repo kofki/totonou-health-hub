@@ -86,6 +86,14 @@ final class SupabaseCloudStore: CloudStore {
         try await client.from("quests").delete().eq("user_id", value: userID).execute()
     }
 
+    func save(arcs: [ArcRecord]) async throws {
+        guard !arcs.isEmpty else { return }
+        let userID = try await client.auth.session.user.id
+        try await client.from("arcs")
+            .upsert(arcs.map { ArcUpload(userID: userID, $0) }, onConflict: "user_id,title,start_date")
+            .execute()
+    }
+
     func save(quests: [QuestRecord]) async throws {
         guard !quests.isEmpty else { return }
         let userID = try await client.auth.session.user.id
@@ -231,6 +239,12 @@ private struct QuestUpload: Encodable, Sendable {
     let failedAt: String?
     let autoCompleted: Bool
     let updatedAt: String
+    let arc: String?
+    let objective: String?
+    let parentTitle: String?
+    let parentScheduledAt: String?
+    let signalKey: String?
+    let target: Double?
 
     init(userID: UUID, _ quest: QuestRecord) {
         self.userID = userID
@@ -246,6 +260,12 @@ private struct QuestUpload: Encodable, Sendable {
         failedAt = quest.failedAt?.ISO8601Format()
         autoCompleted = quest.autoCompleted
         updatedAt = Date.now.ISO8601Format()
+        arc = quest.arc
+        objective = quest.objective
+        parentTitle = quest.parentTitle
+        parentScheduledAt = quest.parentScheduledAt?.ISO8601Format()
+        signalKey = quest.signalKey
+        target = quest.target
     }
 
     enum CodingKeys: String, CodingKey {
@@ -258,6 +278,10 @@ private struct QuestUpload: Encodable, Sendable {
         case completedAt = "completed_at"
         case failedAt = "failed_at"
         case autoCompleted = "auto_completed"
+        case arc, objective, target
+        case parentTitle = "parent_title"
+        case parentScheduledAt = "parent_scheduled_at"
+        case signalKey = "signal_key"
         case updatedAt = "updated_at"
     }
 
@@ -277,5 +301,46 @@ private struct QuestUpload: Encodable, Sendable {
         try c.encode(failedAt, forKey: .failedAt)
         try c.encode(autoCompleted, forKey: .autoCompleted)
         try c.encode(updatedAt, forKey: .updatedAt)
+    }
+}
+
+private struct ArcUpload: Encodable, Sendable {
+    let userID: UUID
+    let title: String
+    let kind: String
+    let manifesto: String
+    let goals: [String]
+    let goalsDone: [String]
+    let startDate: String
+    let endDate: String?
+    let endedAt: String?
+    let questPlan: [String]
+    let objectives: [ArcRecord.ObjectiveRecord]
+    let updatedAt: String
+
+    init(userID: UUID, _ arc: ArcRecord) {
+        self.userID = userID
+        title = arc.title
+        kind = arc.kind
+        manifesto = arc.manifesto
+        goals = arc.goals
+        goalsDone = arc.goalsDone
+        startDate = arc.startDate.ISO8601Format()
+        endDate = arc.endDate?.ISO8601Format()
+        endedAt = arc.endedAt?.ISO8601Format()
+        questPlan = arc.questPlan
+        objectives = arc.objectives
+        updatedAt = Date.now.ISO8601Format()
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case title, kind, manifesto, goals, objectives
+        case goalsDone = "goals_done"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case endedAt = "ended_at"
+        case questPlan = "quest_plan"
+        case updatedAt = "updated_at"
     }
 }

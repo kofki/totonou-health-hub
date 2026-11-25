@@ -69,7 +69,9 @@ around them, for example a phone-free quest at the hour usage usually climbs.
 give an existing arc a new count.
 - A big quest can be broken into steps: add_quests with partOf set to its title. Each step has its own \
 reward, and the big quest unlocks only when every step is done. Steps keep Today's list short: the \
-user sees one quest with its steps under it. A quest lists its progress as "steps" in get_overview.
+user sees one quest with its steps under it. In get_overview a quest with steps lists them under \
+"steps", with "stepsDone" and "lockedUntilStepsDone"; each step also appears in quests with "partOf". \
+To remove a step, use remove_quest with its title and its quest's date and time.
 
 Ask the user what they want before creating an arc, and tell them what you added afterwards. Changes \
 reach the phone the next time the Totonou app is opened; until then get_overview lists them as pending.`;
