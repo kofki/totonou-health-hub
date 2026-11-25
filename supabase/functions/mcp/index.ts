@@ -270,6 +270,21 @@ const TOOLS = [
     },
   },
   {
+    name: "untick_quest",
+    title: "Mark a quest as not done",
+    description: "Open a finished quest or step again when it was ticked by mistake or not really done. What it " +
+      "paid (XP, stat points, minutes, HP) is taken back. Only when the user asks for it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Exact title, from get_overview." },
+        date: { type: "string", description: "Local date, YYYY-MM-DD." },
+        time: { type: "string", description: "Local start time, HH:MM, when two quests that day share the title." },
+      },
+      required: ["title", "date"],
+    },
+  },
+  {
     name: "share_quest",
     title: "Let a quest count for another arc",
     description: "Make a quest (or daily quest) from one arc also count toward an objective of another arc, or " +
@@ -567,6 +582,11 @@ async function call(db: SupabaseClient, userID: string, name: string, args: Json
       if (args.arc !== undefined) payload.arc = str(args.arc, "arc", 80);
       if (args.date !== undefined) payload.date = date(args.date, "date");
       return await queue(db, userID, [{ kind: "set_steps", payload }]);
+    }
+    case "untick_quest": {
+      const payload: Json = { title: str(args.title, "title", 80), date: date(args.date, "date") };
+      if (args.time !== undefined) payload.time = time(args.time, "time");
+      return await queue(db, userID, [{ kind: "untick_quest", payload }]);
     }
     case "share_quest": {
       const payload: Json = {

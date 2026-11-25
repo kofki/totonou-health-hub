@@ -118,6 +118,13 @@ struct QuestInfoWindow: View {
                 .buttonStyle(SystemButtonStyle(tint: tint, filled: true))
                 .disabled(quest.isBlocked)
             }
+            if quest.isDone {
+                // Ticked by mistake: open it again and take back what it paid.
+                Button("Not done") {
+                    withAnimation(.snappy) { engine.untick(quest, player: player) }
+                }
+                .buttonStyle(SystemButtonStyle(tint: tint))
+            }
         }
         .padding(.horizontal, 22)
         .padding(.top, 12)

@@ -201,6 +201,9 @@ final class Quest {
     var completedAt: Date?
     var failedAt: Date?
     var autoCompleted: Bool
+    /// What finishing it paid, so unticking can take back exactly that.
+    var xpEarned: Int = 0
+    var hpHealed: Int = 0
     var arc: Arc?
     /// The calendar event or reminder this quest came from, if any.
     var externalID: String?

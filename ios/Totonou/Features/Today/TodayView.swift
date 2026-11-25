@@ -304,15 +304,24 @@ struct QuestGroup: View {
     var showArc = false
     let open: (Quest) -> Void
     let complete: (Quest) -> Void
+    @Environment(QuestEngine.self) private var engine
+    @Query private var players: [Player]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            QuestRow(quest: quest, showArc: showArc, open: { open(quest) }, complete: { complete(quest) })
+            QuestRow(quest: quest, showArc: showArc, open: { open(quest) }, complete: { complete(quest) },
+                     untick: { untick(quest) })
             ForEach(quest.orderedSubquests) { step in
-                QuestRow(quest: step, isStep: true, open: { open(step) }, complete: { complete(step) })
+                QuestRow(quest: step, isStep: true, open: { open(step) }, complete: { complete(step) },
+                         untick: { untick(step) })
                     .padding(.leading, 32)
             }
         }
+    }
+
+    private func untick(_ quest: Quest) {
+        guard let player = players.first else { return }
+        withAnimation(.snappy) { engine.untick(quest, player: player) }
     }
 }
 
@@ -324,6 +333,8 @@ struct QuestRow: View {
     var isStep = false
     let open: () -> Void
     let complete: () -> Void
+    /// Tapping the tick of a finished quest opens it again. Nil where that is not offered.
+    var untick: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -360,10 +371,16 @@ struct QuestRow: View {
 
     @ViewBuilder private var leading: some View {
         if quest.isDone {
-            Circle().fill(Ink.ai.opacity(0.25))
-                .overlay(GlyphIcon(.check, size: 16, tint: Ink.ai))
-                .frame(width: 30, height: 30)
-                .frame(width: 44, height: 44)
+            Button { untick?() } label: {
+                Circle().fill(Ink.ai.opacity(0.25))
+                    .overlay(GlyphIcon(.check, size: 16, tint: Ink.ai))
+                    .frame(width: 30, height: 30)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(PressStyle())
+            .disabled(untick == nil)
+            .accessibilityLabel("Mark \(quest.title) as not done")
         } else if quest.isBlocked {
             // Waits for its steps: a lock instead of a tick box.
             GlyphIcon(.lock, size: 18, tint: Ink.mute)

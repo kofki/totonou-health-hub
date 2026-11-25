@@ -45,6 +45,7 @@ struct ClaudeChange: Decodable, Sendable, Identifiable {
         case coachMessage = "coach_message"
         case setSteps = "set_steps"
         case shareQuest = "share_quest"
+        case untickQuest = "untick_quest"
     }
 
     let id: UUID

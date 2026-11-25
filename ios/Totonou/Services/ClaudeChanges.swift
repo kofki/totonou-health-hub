@@ -105,6 +105,7 @@ private struct ClaudeApplier {
         case .addObjective: return addObjective(p)
         case .setSteps: return setSteps(p)
         case .shareQuest: return shareQuest(p)
+        case .untickQuest: return untickQuest(p)
         case .coachMessage:
             guard let text = p.text else { return "skipped: no text" }
             ClaudeCoachNote.save(text, at: now)
@@ -262,6 +263,23 @@ private struct ClaudeApplier {
             context.insert(quest)
             QuestPlanner.addSteps(idea.steps, to: quest, context: context)
         }
+        return "applied"
+    }
+
+    /// Open a finished quest again, taking back what it paid. With a time, that
+    /// exact quest; without, the one with this title that day.
+    private func untickQuest(_ p: ClaudeChange.Payload) -> String {
+        guard let title = p.title, let day = self.day(p.date),
+              let end = calendar.date(byAdding: .day, value: 1, to: day) else { return "skipped: bad title or date" }
+        let quests = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= day && $0.scheduledAt < end }))) ?? []
+        let at = moment(date: p.date, time: p.time)
+        let matches = quests.filter { quest in
+            quest.isDone && quest.title.compare(title, options: .caseInsensitive) == .orderedSame
+                && at.map { abs(quest.scheduledAt.timeIntervalSince($0)) < 60 } ?? true
+        }
+        guard let quest = matches.first else { return "skipped: no finished quest called \(title) that day" }
+        guard let player = try? context.fetch(FetchDescriptor<Player>()).first else { return "skipped: no player" }
+        engine.untick(quest, player: player, now: now)
         return "applied"
     }
 

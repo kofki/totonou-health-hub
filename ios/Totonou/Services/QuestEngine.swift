@@ -409,9 +409,11 @@ final class QuestEngine {
         if quest.source == .reminders, let id = quest.externalID { day.completeReminder(id: id) }
         // A finished quest needs no alarm.
         if let id = quest.alarmID { alarms.cancel(id: id); quest.alarmID = nil }
+        let damageBefore = player.damage
         if quest.isRecovery {
             player.recoveries += 1
             player.heal(HitPoints.healForRecovery)
+            quest.hpHealed = damageBefore - player.damage
         } else {
             // Mastery: the stat's value before this quest decides the bonus.
             var xp = Rewards.questXP(rank: quest.rank, statValue: player.value(for: quest.stat))
@@ -419,28 +421,12 @@ final class QuestEngine {
             if player.condition != .healthy { xp /= 2 }
             player.heal(HitPoints.healForQuest(rank: quest.rank))
             healIfArcCleared(quest, player: player, now: now)
+            // Everything this quest actually healed, the arc's clear bonus included.
+            quest.hpHealed = damageBefore - player.damage
+            quest.xpEarned = xp
             player.add(quest.rank.statPoints, to: quest.stat)
             player.bankedMinutes += quest.rank.earnedMinutes
-            player.questsDone += 1
-            if auto { player.autoDone += 1 }
-            if quest.isCritical { player.mustDoDone += 1 }
-            let clock = Calendar.current.dateComponents([.hour, .minute], from: now)
-            let minute = (clock.hour ?? 12) * 60 + (clock.minute ?? 0)
-            if minute < 6 * 60 + 30 { player.earlyQuests += 1 }
-            if minute >= 21 * 60 { player.nightQuests += 1 }
-            if now <= quest.dueAt { player.onTimeQuests += 1 }
-            if quest.durationMinutes >= 60 { player.longQuests += 1 }
-            if quest.rank >= .a { player.hardQuests += 1 }
-            if auto {
-                switch quest.signalKey.flatMap(SignalKey.init(rawValue:)) {
-                case .runKm: player.runQuests += 1
-                case .steps: player.stepQuests += 1
-                case .focusMinutes: player.mindfulQuests += 1
-                default: break
-                }
-            }
-            if quest.source == .calendar { player.calendarQuests += 1 }
-            if quest.source == .reminders { player.reminderQuests += 1 }
+            tally(quest, player: player, at: now, by: 1)
             reward(player, xp: xp, context: quest.modelContext, now: now)
             notice = RewardNotice(xp: xp, stat: quest.stat,
                                   points: quest.rank.statPoints, minutes: quest.rank.earnedMinutes)
@@ -452,6 +438,73 @@ final class QuestEngine {
         checkMilestone(player, now: now)
         checkAchievements(player, now: now)
         checkDayClear(player, context: quest.modelContext, now: now)
+    }
+
+    /// The habit counters a finished quest adds to (and an untick takes back).
+    private func tally(_ quest: Quest, player: Player, at time: Date, by step: Int) {
+        func bump(_ value: inout Int) { value = max(value + step, 0) }
+        bump(&player.questsDone)
+        if quest.autoCompleted { bump(&player.autoDone) }
+        if quest.isCritical { bump(&player.mustDoDone) }
+        let clock = Calendar.current.dateComponents([.hour, .minute], from: time)
+        let minute = (clock.hour ?? 12) * 60 + (clock.minute ?? 0)
+        if minute < 6 * 60 + 30 { bump(&player.earlyQuests) }
+        if minute >= 21 * 60 { bump(&player.nightQuests) }
+        if time <= quest.dueAt { bump(&player.onTimeQuests) }
+        if quest.durationMinutes >= 60 { bump(&player.longQuests) }
+        if quest.rank >= .a { bump(&player.hardQuests) }
+        if quest.autoCompleted {
+            switch quest.signalKey.flatMap(SignalKey.init(rawValue:)) {
+            case .runKm: bump(&player.runQuests)
+            case .steps: bump(&player.stepQuests)
+            case .focusMinutes: bump(&player.mindfulQuests)
+            default: break
+            }
+        }
+        if quest.source == .calendar { bump(&player.calendarQuests) }
+        if quest.source == .reminders { bump(&player.reminderQuests) }
+    }
+
+    /// Untick a finished quest: it is open again, and what finishing it paid
+    /// (XP, stat points, minutes, HP, the arc's clear bonus) is taken back.
+    /// Level-up rewards, titles and achievements already earned are kept.
+    /// Unticking a step also unticks its finished quest, which needs all steps.
+    func untick(_ quest: Quest, player: Player, now: Date = .now) {
+        guard quest.isDone, let finished = quest.completedAt else { return }
+        if let parent = quest.parent, parent.isDone { untick(parent, player: player, now: now) }
+        if quest.isRecovery {
+            player.recoveries = max(player.recoveries - 1, 0)
+        } else {
+            // Quests finished before 2026-11-25 did not record their XP: use the rank's.
+            let paid = quest.xpEarned > 0 ? quest.xpEarned : quest.rank.xp
+            player.totalXP = max(player.totalXP - paid, 0)
+            player.add(-min(quest.rank.statPoints, player.value(for: quest.stat)), to: quest.stat)
+            player.bankedMinutes = max(player.bankedMinutes - quest.rank.earnedMinutes, 0)
+            tally(quest, player: player, at: finished, by: -1)
+            // The arc was cleared that day; now it is not.
+            if let arc = quest.arc {
+                let key = "\(Self.dayKey(finished))|\(arc.title)"
+                // Its HP is in hpHealed below, so only the record goes.
+                player.clearedArcs.removeAll { $0 == key }
+            }
+        }
+        player.hurt(quest.hpHealed)
+        quest.completedAt = nil
+        quest.autoCompleted = false
+        quest.xpEarned = 0
+        quest.hpHealed = 0
+        // That day no longer counts toward the streak if nothing else was done.
+        let calendar = Calendar.current
+        if let context = quest.modelContext {
+            let start = calendar.startOfDay(for: finished)
+            let end = calendar.date(byAdding: .day, value: 1, to: start)!
+            let others = (try? context.fetchCount(FetchDescriptor<Quest>(predicate: #Predicate {
+                $0.completedAt != nil && $0.scheduledAt >= start && $0.scheduledAt < end
+            }))) ?? 1
+            if others == 0 { player.completionDays.removeAll { calendar.isDate($0, inSameDayAs: start) } }
+        }
+        // A make-up quest open again seals the apps again.
+        if quest.isRecovery { ScreenTimeLock.shared.endUnlock() }
     }
 
     /// Land a hit on a boss by finishing one of its subtasks.
