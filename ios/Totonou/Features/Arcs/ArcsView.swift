@@ -444,7 +444,8 @@ private struct BossCard: View {
 }
 
 /// A sheet with the app's backdrop, a title and a Close button.
-private struct SheetFrame<Content: View>: View {
+/// Shared by sheets across the app (arcs, lifts).
+struct SheetFrame<Content: View>: View {
     let title: String
     @ViewBuilder var content: Content
     @Environment(\.dismiss) private var dismiss

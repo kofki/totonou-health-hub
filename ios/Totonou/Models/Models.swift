@@ -102,6 +102,9 @@ final class Player {
     /// raw value. One dictionary rather than a field each, so a new sport needs
     /// no new column. Totals as last read, like the workout counts above.
     var sportFacts: [String: Int] = [:]
+    /// What you entered yourself for the strength benchmarks: body weight and
+    /// one-rep maxes in kg, push-ups in reps. Keys are `LiftRecord` raw values.
+    var lifts: [String: Double] = [:]
 
     init(name: String, totalXP: Int = 0, strength: Int = 0, endurance: Int = 0, intellect: Int = 0,
          discipline: Int = 0, recovery: Int = 0, bankedMinutes: Int = 0, completionDays: [Date] = []) {

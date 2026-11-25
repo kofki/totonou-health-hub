@@ -49,6 +49,8 @@ struct CoachView: View {
                     if advisor != nil { ask(review) }
                     askClaude
                 }
+                // Where you stand against other people: needs no quests, only your numbers.
+                BenchmarksSection(player: player, readings: engine.readings)
             }
         }
     }

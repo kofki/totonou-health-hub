@@ -485,6 +485,11 @@ enum ClaudeSnapshot {
                 "streakDays": player.streak(on: now), "bankedScreenMinutes": player.bankedMinutes,
                 "stats": Dictionary(uniqueKeysWithValues: Stat.allCases.map { ($0.rawValue, player.value(for: $0)) }),
                 "hp": player.hp, "maxHP": player.maxHP,
+                // Where each measured number stands against men 20-29 (Coach → Benchmarks).
+                "benchmarks": BenchmarksSection.standings(player: player, readings: readings, averageSteps: nil).map {
+                    ["metric": $0.norm.title, "value": $0.shown, "betterThanPercent": Int($0.percentile.rounded()),
+                     "median": $0.norm.median, "topOnePercent": $0.norm.topOnePercent]
+                },
                 "condition": player.condition == .healthy ? "healthy" : player.condition == .wounded ? "wounded" : "down",
             ]
         }

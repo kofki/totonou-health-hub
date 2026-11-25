@@ -96,6 +96,16 @@ struct HealthVitalsSource: SignalSource {
         return try await query.result(for: HealthKitSignalSource.store)?.sumQuantity()?.doubleValue(for: unit) ?? 0
     }
 
+    /// Steps per day over the last `days` full days, for the benchmarks: one
+    /// day's count says little, a week's average says how you live.
+    static func averageSteps(days: Int = 7, now: Date = .now) async -> Double? {
+        guard HKHealthStore.isHealthDataAvailable() else { return nil }
+        let today = Calendar.current.startOfDay(for: now)
+        guard let start = Calendar.current.date(byAdding: .day, value: -days, to: today),
+              let total = try? await sum(.stepCount, unit: .count(), from: start, to: today), total > 0 else { return nil }
+        return total / Double(days)
+    }
+
     /// The most recent sample from the last `days` days, or nil.
     private static func latest(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int, now: Date) async throws -> Double? {
         let start = Calendar.current.date(byAdding: .day, value: -days, to: now)
