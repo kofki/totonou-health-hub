@@ -195,11 +195,7 @@ struct TodayView: View {
     }
 
     private var laterList: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
-                Text("Later today").font(.text(22, weight: .bold))
-                Text("\(later.count)").font(.number(17)).foregroundStyle(Ink.mute)
-            }
+        FoldingSection("Later today", count: later.count, key: "later") {
             ForEach(later) { quest in
                 QuestGroup(quest: quest, showArc: manyArcs, open: select) {
                     if let player = players.first { complete($0, player) }
@@ -229,11 +225,7 @@ struct TodayView: View {
             let questIDs = Set(quests.compactMap(\.externalID))
             let shown = events.filter { !questIDs.contains($0.id) && !questIDs.contains(EventKitDaySource.baseID($0.id)) }
             if !shown.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 10) {
-                        Text("Your day").font(.text(22, weight: .bold))
-                        Text("\(shown.count)").font(.number(17)).foregroundStyle(Ink.mute)
-                    }
+                FoldingSection("Your day", count: shown.count, key: "day") {
                     ForEach(shown) { event in
                         EventRow(event: event) {
                             withAnimation(.snappy) { engine.addQuest(from: event, context: context) }
@@ -305,12 +297,35 @@ struct QuestGroup: View {
     let open: (Quest) -> Void
     let complete: (Quest) -> Void
     @Environment(QuestEngine.self) private var engine
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var players: [Player]
+    /// Steps are folded under their quest until you open them.
+    @State private var showSteps = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            QuestRow(quest: quest, showArc: showArc, open: { open(quest) }, complete: { complete(quest) },
-                     untick: { untick(quest) })
+            HStack(spacing: 0) {
+                QuestRow(quest: quest, showArc: showArc, open: { open(quest) }, complete: { complete(quest) },
+                         untick: { untick(quest) })
+                if !quest.subquests.isEmpty {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .snappy) { showSteps.toggle() }
+                    } label: {
+                        GlyphIcon(.chevron, size: 14, tint: Ink.mute)
+                            .rotationEffect(.degrees(showSteps ? 90 : 0))
+                            .frame(width: 36, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityLabel(showSteps ? "Hide steps" : "Show steps")
+                }
+            }
+            if showSteps { steps }
+        }
+    }
+
+    private var steps: some View {
+        VStack(alignment: .leading, spacing: 0) {
             ForEach(quest.orderedSubquests) { step in
                 QuestRow(quest: step, isStep: true, open: { open(step) }, complete: { complete(step) },
                          untick: { untick(step) })

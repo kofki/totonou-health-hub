@@ -438,6 +438,9 @@ final class QuestEngine {
         checkMilestone(player, now: now)
         checkAchievements(player, now: now)
         checkDayClear(player, context: quest.modelContext, now: now)
+        // Saved at once: XP and minutes should never wait for an autosave that
+        // a closed app skips.
+        try? quest.modelContext?.save()
     }
 
     /// The habit counters a finished quest adds to (and an untick takes back).
@@ -505,6 +508,7 @@ final class QuestEngine {
         }
         // A make-up quest open again seals the apps again.
         if quest.isRecovery { ScreenTimeLock.shared.endUnlock() }
+        try? quest.modelContext?.save()
     }
 
     /// Land a hit on a boss by finishing one of its subtasks.

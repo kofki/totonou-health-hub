@@ -552,3 +552,45 @@ struct HPBar: View {
         .accessibilityLabel("Hit points \(hp) of \(max)")
     }
 }
+
+/// A list section whose header folds it: a title, a count, and a chevron that
+/// turns. Folded or not is remembered per section (`key`) between launches.
+struct FoldingSection<Content: View>: View {
+    let title: String
+    let count: Int
+    /// The UserDefaults key that remembers whether it is folded.
+    let key: String
+    @ViewBuilder var content: Content
+
+    @AppStorage private var folded: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(_ title: String, count: Int, key: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.count = count
+        self.key = key
+        self.content = content()
+        // @AppStorage with a key chosen at run time is made here, in init.
+        _folded = AppStorage(wrappedValue: false, "fold." + key)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(reduceMotion ? nil : .snappy) { folded.toggle() }
+            } label: {
+                HStack(spacing: 10) {
+                    Text(title).font(.text(22, weight: .bold))
+                    Text("\(count)").font(.number(17)).foregroundStyle(Ink.mute)
+                    Spacer()
+                    GlyphIcon(.chevron, size: 14, tint: Ink.mute)
+                        .rotationEffect(.degrees(folded ? 0 : 90))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("\(title), \(count). \(folded ? "Folded" : "Open")")
+            if !folded { content }
+        }
+    }
+}
