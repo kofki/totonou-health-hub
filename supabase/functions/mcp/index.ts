@@ -67,6 +67,9 @@ around them, for example a phone-free quest at the hour usage usually climbs.
 - mustDo is for the one or two quests a day that matter most; missing one has a penalty in the game.
 - add_daily_quest for repeating steps (with weekdays), add_quests for one-off days, add_objective to \
 give an existing arc a new count.
+- A big quest can be broken into steps: add_quests with partOf set to its title. Each step has its own \
+reward, and the big quest unlocks only when every step is done. Steps keep Today's list short: the \
+user sees one quest with its steps under it. A quest lists its progress as "steps" in get_overview.
 
 Ask the user what they want before creating an arc, and tell them what you added afterwards. Changes \
 reach the phone the next time the Totonou app is opened; until then get_overview lists them as pending.`;
@@ -134,6 +137,11 @@ const TOOLS = [
             properties: {
               ...questProperties,
               date: { type: "string", description: "Local date, YYYY-MM-DD. Today or later." },
+              partOf: {
+                type: "string",
+                description: "Make this a step of another quest that day: its exact title. Steps pay their own " +
+                  "reward, and that quest can only be finished once all its steps are done. time is then ignored.",
+              },
               arc: { type: "string", description: "Exact title of the arc it belongs to, from get_overview." },
             },
             required: [...questRequired, "date"],
@@ -419,6 +427,7 @@ async function call(db: SupabaseClient, userID: string, name: string, args: Json
         const payload = quest(item);
         payload.date = date((item as Json).date, "date");
         if ((item as Json).arc !== undefined) payload.arc = str((item as Json).arc, "arc", 80);
+        if ((item as Json).partOf !== undefined) payload.partOf = str((item as Json).partOf, "partOf", 80);
         return { kind: "add_quest", payload };
       });
       return await queue(db, userID, changes);

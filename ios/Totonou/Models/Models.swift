@@ -178,6 +178,12 @@ final class Quest {
     /// objective's tally for the day or week. Optional with a default, so a
     /// store saved by an older build opens unchanged.
     var objective: Objective? = nil
+    /// The quest this one is a step of. Each step pays its own reward; the
+    /// quest above it can only be finished once every step is done.
+    var parent: Quest? = nil
+    /// The steps of this quest. Deleting the quest deletes its steps.
+    @Relationship(deleteRule: .cascade, inverse: \Quest.parent)
+    var subquests: [Quest] = []
 
     init(title: String, stat: Stat, rank: Rank, source: QuestSource = .manual, isCritical: Bool = false,
          isRecovery: Bool = false, scheduledAt: Date, durationMinutes: Int = 15,
@@ -205,6 +211,14 @@ final class Quest {
     var isFailed: Bool { failedAt != nil }
     var isOpen: Bool { !isDone && !isFailed }
     var dueAt: Date { scheduledAt.addingTimeInterval(TimeInterval(durationMinutes * 60)) }
+
+    /// Steps in the order they were planned.
+    var orderedSubquests: [Quest] { subquests.sorted { ($0.scheduledAt, $0.title) < ($1.scheduledAt, $1.title) } }
+    var subquestsDone: Int { subquests.filter(\.isDone).count }
+    /// True while a step is still open: the quest waits for its steps.
+    var isBlocked: Bool { subquests.contains { $0.isOpen } }
+    /// The next step to do, or nil when there is none left.
+    var nextStep: Quest? { orderedSubquests.first(where: \.isOpen) }
 }
 
 /// How often an objective's count starts again from zero.

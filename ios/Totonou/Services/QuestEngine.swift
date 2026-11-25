@@ -312,6 +312,22 @@ final class QuestEngine {
 
     // MARK: Adding
 
+    /// Add a step to a quest. It pays its own reward, and the quest cannot be
+    /// finished until every step is done. Steps sit just before the quest.
+    @discardableResult
+    func addStep(_ title: String, to quest: Quest, minutes: Int = 15, context: ModelContext) -> Quest? {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, quest.isOpen, quest.parent == nil else { return nil }
+        let step = Quest(title: title, stat: quest.stat, rank: minutes >= 30 ? .d : .e,
+                         scheduledAt: quest.scheduledAt, durationMinutes: minutes, arc: quest.arc)
+        step.objective = quest.objective
+        // Steps share the quest's start; their order is the order they were added.
+        step.scheduledAt = quest.scheduledAt.addingTimeInterval(Double(quest.subquests.count))
+        context.insert(step)
+        quest.subquests.append(step)
+        return step
+    }
+
     /// Put one more quest on today's list. If its time has passed, it is due in half an hour.
     func add(_ idea: QuestIdea, arc: Arc?, context: ModelContext, now: Date = .now) {
         let quest = QuestPlanner.quests(from: [idea], on: now, arc: arc)[0]
@@ -369,7 +385,8 @@ final class QuestEngine {
     // MARK: Completing
 
     func complete(_ quest: Quest, player: Player, auto: Bool = false, now: Date = .now) {
-        guard quest.isOpen else { return }
+        // A quest with open steps waits for them (sub-quests are its requirements).
+        guard quest.isOpen, !quest.isBlocked else { return }
         quest.completedAt = now
         quest.autoCompleted = auto
         Sounds.play(.complete)
@@ -598,7 +615,7 @@ final class QuestEngine {
             player.martialArtsWorkouts = counts[.martialArtsWorkouts] ?? player.martialArtsWorkouts
             checkSkills(player, now: .now)
         }
-        for quest in quests where quest.isOpen {
+        for quest in quests where quest.isOpen && !quest.isBlocked {
             guard let raw = quest.signalKey, let key = SignalKey(rawValue: raw),
                   let target = quest.target, let value = readings[key] else { continue }
             if value >= target {

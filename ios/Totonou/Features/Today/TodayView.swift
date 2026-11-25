@@ -20,14 +20,21 @@ struct TodayView: View {
         allQuests.filter { Calendar.current.isDateInToday($0.scheduledAt) }
     }
 
-    /// Recovery quests jump the queue.
+    /// Today's quests that are not a step of another quest. Steps are shown
+    /// under their quest instead of on their own.
+    private var topLevel: [Quest] { quests.filter { $0.parent == nil } }
+
+    /// Recovery quests jump the queue. When the next quest has open steps, the
+    /// next thing to do is its first open step.
     private var next: Quest? {
-        quests.first { $0.isRecovery && $0.isOpen } ?? quests.first { $0.isOpen }
+        let quest = topLevel.first { $0.isRecovery && $0.isOpen } ?? topLevel.first { $0.isOpen }
+        return quest?.nextStep ?? quest
     }
 
-    /// Everything still to do after the next quest, in time order.
-    private var later: [Quest] { quests.filter { $0.isOpen && $0 !== next } }
-    private var finished: [Quest] { quests.filter { !$0.isOpen } }
+    /// Everything still to do after the next quest, in time order. A quest whose
+    /// step is up next stays here, so its other steps are still in view.
+    private var later: [Quest] { topLevel.filter { $0.isOpen && $0 !== next } }
+    private var finished: [Quest] { topLevel.filter { !$0.isOpen } }
     private var locked: Bool { engine.isLocked(quests) }
     /// With several arcs running, each quest row says which arc it serves.
     private var manyArcs: Bool { arcs.active().count > 1 }
@@ -57,7 +64,7 @@ struct TodayView: View {
                     dayList
                     if !finished.isEmpty {
                         DoneSection(quests: finished) { quest in
-                            QuestRow(quest: quest, showArc: manyArcs, open: { select(quest) }, complete: { complete(quest, player) })
+                            QuestGroup(quest: quest, showArc: manyArcs, open: select, complete: { complete($0, player) })
                         }
                     }
                 }
@@ -132,6 +139,11 @@ struct TodayView: View {
     private func nextQuest(_ quest: Quest, player: Player) -> some View {
         SystemWindow(title: quest.isRecovery ? "Recovery quest" : "Next quest", tint: quest.isRecovery ? Ink.shu : Ink.ai) {
             Text(quest.title.uppercased()).font(.hud(28))
+            if let parent = quest.parent {
+                // A step: say which quest it unlocks.
+                Text("Step \(parent.orderedSubquests.firstIndex { $0 === quest }.map { $0 + 1 } ?? 1) of \(parent.subquests.count) · \(parent.title)")
+                    .font(.text(15, weight: .medium))
+            }
             HStack(spacing: 8) {
                 RankBadge(rank: quest.rank, size: 30)
                 Text(quest.scheduledAt.clock).font(.number(15, weight: .bold))
@@ -188,8 +200,8 @@ struct TodayView: View {
                 Text("\(later.count)").font(.number(17)).foregroundStyle(Ink.mute)
             }
             ForEach(later) { quest in
-                QuestRow(quest: quest, showArc: manyArcs, open: { select(quest) }) {
-                    if let player = players.first { complete(quest, player) }
+                QuestGroup(quest: quest, showArc: manyArcs, open: select) {
+                    if let player = players.first { complete($0, player) }
                 }
             }
         }
@@ -285,10 +297,30 @@ struct EventRow: View {
     }
 }
 
+/// A quest and, indented under it, its steps. A quest without steps is just its row.
+struct QuestGroup: View {
+    let quest: Quest
+    var showArc = false
+    let open: (Quest) -> Void
+    let complete: (Quest) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            QuestRow(quest: quest, showArc: showArc, open: { open(quest) }, complete: { complete(quest) })
+            ForEach(quest.orderedSubquests) { step in
+                QuestRow(quest: step, isStep: true, open: { open(step) }, complete: { complete(step) })
+                    .padding(.leading, 32)
+            }
+        }
+    }
+}
+
 /// One line of the list: a tick box on the left, the quest, its rank on the right.
 struct QuestRow: View {
     let quest: Quest
     var showArc = false
+    /// A step of another quest: drawn smaller, under its quest.
+    var isStep = false
     let open: () -> Void
     let complete: () -> Void
 
@@ -299,12 +331,14 @@ struct QuestRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(quest.title)
-                            .font(.text(18, weight: .medium))
+                            .font(.text(isStep ? 16 : 18, weight: .medium))
                             .strikethrough(quest.isDone, color: Ink.mute)
                             .foregroundStyle(quest.isOpen ? Ink.washi : Ink.mute)
                             .multilineTextAlignment(.leading)
                         HStack(spacing: 6) {
-                            Text(quest.scheduledAt.clock)
+                            if !isStep { Text(quest.scheduledAt.clock) }
+                            // Exercise 20 turns this into pips.
+                            if !quest.subquests.isEmpty { StepProgress(done: quest.subquestsDone, total: quest.subquests.count) }
                             if showArc, let arc = quest.arc { Text(arc.title).lineLimit(1) }
                             if quest.isCritical { Text("Must do").foregroundStyle(Ink.shu) }
                             if quest.alarmID != nil { GlyphIcon(.alarm, size: 13, tint: Ink.ai) }
@@ -313,7 +347,7 @@ struct QuestRow: View {
                         .caption()
                     }
                     Spacer(minLength: 8)
-                    RankBadge(rank: quest.rank, size: 32, dimmed: !quest.isOpen)
+                    RankBadge(rank: quest.rank, size: isStep ? 26 : 32, dimmed: !quest.isOpen)
                 }
                 .contentShape(Rectangle())
             }
@@ -329,6 +363,11 @@ struct QuestRow: View {
                 .overlay(GlyphIcon(.check, size: 16, tint: Ink.ai))
                 .frame(width: 30, height: 30)
                 .frame(width: 44, height: 44)
+        } else if quest.isBlocked {
+            // Waits for its steps: a lock instead of a tick box.
+            GlyphIcon(.lock, size: 18, tint: Ink.mute)
+                .frame(width: 44, height: 44)
+                .accessibilityLabel("Finish its steps first")
         } else if quest.isFailed {
             Circle().strokeBorder(Ink.shu.opacity(0.6), lineWidth: 1.5)
                 .frame(width: 30, height: 30)

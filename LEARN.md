@@ -29,6 +29,7 @@ the same idea already working somewhere else in the project.
 | 17 | Finished arc row | `ios/Totonou/Exercises/Exercise17_FinishedArcRow.swift` | Finished arcs on the Arcs tab show how they ended, how long they ran and what you got done (now only a grey title) | `Features/Arcs/ArcsView.swift` → `ArcRow`, `Models/Models.swift` → `Arc` |
 | 18 | Objective row | `ios/Totonou/Exercises/Exercise18_ObjectiveRow.swift` | Each objective in an arc shows its count as pips, turns jade when met, and unfolds the quests that count toward it (now one plain line) | `Features/Arcs/ArcsView.swift` → `ArcRow`, `CheckBox`; `Models/Models.swift` → `Objective` |
 | 19 | Unlock countdown | `ios/Totonou/Exercises/Exercise19_UnlockCountdown.swift` | The Screen Time lock screen counts down the minutes you spent, with a bar that empties (now a fixed "Open until" time) | `App/Components.swift` → `ProgressLine` |
+| 20 | Step progress | `ios/Totonou/Exercises/Exercise20_StepProgress.swift` | A quest with steps shows them as pips under its title on Today (now plain "1/3 steps") | `Features/Today/TodayView.swift` → `QuestRow` |
 
 Exercises 8 and 9 are short and visual. They fit well between 3 and 4, once you
 are comfortable with the Xcode canvas.

@@ -164,6 +164,7 @@ private struct ClaudeApplier {
     // Changes
 
     private func addQuest(_ p: ClaudeChange.Payload) -> String {
+        if let parentTitle = p.partOf { return addStep(p, to: parentTitle) }
         guard let time = moment(date: p.date, time: p.time), let title = p.title else { return "skipped: bad date or time" }
         guard time >= calendar.startOfDay(for: now) else { return "skipped: that day is over" }
         guard !exists(title: title, at: time) else { return "skipped: already there" }
@@ -171,6 +172,23 @@ private struct ClaudeApplier {
         if p.arc != nil && arc == nil { return "skipped: no arc called \(p.arc!)" }
         guard let quest = quest(p, at: time, arc: arc) else { return "skipped: bad quest" }
         context.insert(quest)
+        return "applied"
+    }
+
+    /// A step of a quest already on that day, found by title.
+    private func addStep(_ p: ClaudeChange.Payload, to parentTitle: String) -> String {
+        guard let day = self.day(p.date), let title = p.title,
+              let end = calendar.date(byAdding: .day, value: 1, to: day) else { return "skipped: bad date" }
+        let quests = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= day && $0.scheduledAt < end }))) ?? []
+        guard let parent = quests.first(where: { $0.parent == nil && $0.title.compare(parentTitle, options: .caseInsensitive) == .orderedSame }) else {
+            return "skipped: no quest called \(parentTitle) that day"
+        }
+        guard !parent.subquests.contains(where: { $0.title == title }) else { return "skipped: already a step" }
+        guard let step = engine.addStep(title, to: parent, minutes: p.minutes ?? 15, context: context) else {
+            return "skipped: that quest is finished"
+        }
+        if let rank = p.rank.flatMap(Rank.init(rawValue:)) { step.rankRaw = rank.rawValue }
+        if let stat = p.stat.flatMap(Stat.init(rawValue:)) { step.statRaw = stat.rawValue }
         return "applied"
     }
 
@@ -342,6 +360,8 @@ enum ClaudeSnapshot {
             ]
             if let arc = quest.arc { json["arc"] = arc.title }
             if let objective = quest.objective { json["objective"] = objective.title }
+            if let parent = quest.parent { json["partOf"] = parent.title }
+            if !quest.subquests.isEmpty { json["steps"] = "\(quest.subquestsDone)/\(quest.subquests.count) done" }
             if quest.isCritical { json["mustDo"] = true }
             if let finished = quest.completedAt { json["finishedAt"] = clock(finished) }
             return json

@@ -72,6 +72,8 @@ struct ClaudeChange: Decodable, Sendable, Identifiable {
         var arc: String?
         /// For a quest: the objective it counts toward. Titles, as Claude sees them.
         var objective: String?
+        /// For a quest: the title of the quest on the same day it is a step of.
+        var partOf: String?
         var kind: String?
         var manifesto: String?
         var goals: [String]?

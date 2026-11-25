@@ -71,6 +71,8 @@ struct QuestInfoWindow: View {
     let close: () -> Void
 
     @Environment(QuestEngine.self) private var engine
+    @Environment(\.modelContext) private var context
+    @State private var newStep = ""
 
     private var tint: Color { quest.isRecovery ? Ink.shu : Ink.ai }
 
@@ -84,12 +86,14 @@ struct QuestInfoWindow: View {
                 VStack(spacing: 14) {
                     window
                     if quest.isOpen { options }
+                    if quest.isOpen && quest.parent == nil && !quest.isRecovery { steps }
                     if quest.isOpen && quest.source == .manual {
-                        Button("Complete") {
+                        Button(quest.isBlocked ? "Finish its steps first" : "Complete") {
                             withAnimation(.snappy) { engine.complete(quest, player: player) }
                             close()
                         }
                         .buttonStyle(SystemButtonStyle(tint: tint, filled: true))
+                        .disabled(quest.isBlocked)
                     }
                     Button("Close", action: close)
                         .buttonStyle(SystemButtonStyle(tint: tint))
@@ -158,6 +162,38 @@ struct QuestInfoWindow: View {
                 ))
             }
         }
+    }
+
+    /// The quest's steps, and a field to add one. Each step pays its own reward.
+    private var steps: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(quest.orderedSubquests) { step in
+                HStack(spacing: 10) {
+                    GlyphIcon(step.isDone ? .check : .target, size: 16, tint: step.isDone ? Ink.ai : Ink.mute)
+                    Text(step.title).font(.text(16)).strikethrough(step.isDone, color: Ink.mute)
+                    Spacer()
+                    Text("+\(step.rank.xp) XP").font(.number(13)).foregroundStyle(Ink.mute)
+                }
+            }
+            HStack(spacing: 8) {
+                TextField("", text: $newStep, prompt: Text("Add a step…").foregroundStyle(Ink.mute))
+                    .font(.text(16))
+                    .submitLabel(.done)
+                    .onSubmit(addStep)
+                Button("Add", action: addStep)
+                    .font(.text(15, weight: .semibold))
+                    .foregroundStyle(Ink.ai)
+                    .disabled(newStep.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Ink.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func addStep() {
+        withAnimation(.snappy) { engine.addStep(newStep, to: quest, context: context) }
+        newStep = ""
     }
 
     private func option(_ glyph: Glyph, _ title: String, tint: Color, isOn: Binding<Bool>) -> some View {

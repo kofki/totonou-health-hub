@@ -101,6 +101,10 @@ struct QuestRewards: View {
             RewardChip(glyph: .hourglass, text: "+\(quest.rank.earnedMinutes) min", tint: tint)
             RewardChip(glyph: quest.stat.glyph, text: "+\(quest.rank.statPoints)", tint: tint)
         }
+        // Each reward stays on one line; with a long time beside it ("10:00 AM")
+        // the row shrinks a little instead of wrapping "+20 XP" onto two lines.
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
     }
 }
 
