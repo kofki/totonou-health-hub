@@ -44,11 +44,21 @@ import Testing
             let rising = zip(norm.points, norm.points.dropFirst()).allSatisfy { $0 < $1 }
             let falling = zip(norm.points, norm.points.dropFirst()).allSatisfy { $0 > $1 }
             #expect(norm.higherIsBetter ? rising : falling, "\(norm.id)")
+            if let athletes = norm.athletePoints {
+                let up = zip(athletes, athletes.dropFirst()).allSatisfy { $0 < $1 }
+                let down = zip(athletes, athletes.dropFirst()).allSatisfy { $0 > $1 }
+                #expect(norm.higherIsBetter ? up : down, "\(norm.id) athletes")
+            }
         }
     }
 
     @Test func bryanJohnsonSitsHighOnHeartRate() {
         let rhr = NormCatalog.norm("restingHeartRate")!
         #expect(rhr.percentile(of: rhr.bryanJohnson!) > 99)
+    }
+
+    @Test func athletesAreAHarderCrowd() {
+        let bench = NormCatalog.norm("bench")!
+        #expect(bench.athletePercentile(of: 1.5)! < bench.percentile(of: 1.5))
     }
 }

@@ -31,6 +31,7 @@ struct Standing: Identifiable {
     let shown: String
     var id: String { norm.id }
     var percentile: Double { norm.percentile(of: value) }
+    var athletePercentile: Double? { norm.athletePercentile(of: value) }
 }
 
 /// The Coach's benchmark section: where you stand against other men your
@@ -87,16 +88,26 @@ struct BenchmarksSection: View {
         Chart(standings) { standing in
             BarMark(x: .value("Better than", standing.percentile), y: .value("Metric", standing.norm.title))
                 .foregroundStyle(standing.norm.stat.tint)
+                .position(by: .value("Against", "Everyone"))
                 .annotation(position: .trailing) {
                     Text("\(Int(standing.percentile.rounded()))").font(.number(12)).foregroundStyle(Ink.mute)
                 }
+            // A second, fainter bar where athletes have their own table.
+            if let athletes = standing.athletePercentile {
+                BarMark(x: .value("Better than", athletes), y: .value("Metric", standing.norm.title))
+                    .foregroundStyle(standing.norm.stat.tint.opacity(0.4))
+                    .position(by: .value("Against", "Athletes"))
+                    .annotation(position: .trailing) {
+                        Text("\(Int(athletes.rounded())) athletes").font(.number(11)).foregroundStyle(Ink.mute)
+                    }
+            }
             RuleMark(x: .value("Median", 50))
                 .foregroundStyle(Ink.faint)
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
         }
         .chartXScale(domain: 0...100)
         .chartXAxis { AxisMarks(values: [0, 50, 100]) }
-        .frame(height: CGFloat(standings.count) * 30 + 30)
+        .frame(height: CGFloat(standings.count) * 30 + CGFloat(standings.filter { $0.athletePercentile != nil }.count) * 18 + 30)
         .accessibilityLabel("How many people in 100 you do better than, per metric")
     }
 
@@ -151,7 +162,13 @@ struct NormRow: View {
             Text(standingLabel(percentile: standing.percentile)
                  ?? "Better than \(Int(standing.percentile.rounded())) in 100")
                 .caption(norm.stat.tint, size: 14)
-            NormTrack(standing: standing)
+            NormTrack(percentile: standing.percentile, tint: norm.stat.tint,
+                      johnson: norm.bryanJohnson.map(norm.percentile(of:)))
+            if let athletes = standing.athletePercentile, let group = norm.athleteGroup {
+                Text("Among \(group): better than \(Int(athletes.rounded())) in 100")
+                    .caption(size: 13).padding(.top, 2)
+                NormTrack(percentile: athletes, tint: norm.stat.tint.opacity(0.6), johnson: nil)
+            }
             Text(reference(norm)).caption(size: 12)
         }
         .padding(.vertical, 6)
@@ -161,7 +178,9 @@ struct NormRow: View {
     private func reference(_ norm: Norm) -> String {
         var parts = ["Median \(Self.format(norm.median))", "top 1% \(Self.format(norm.topOnePercent))"]
         if let johnson = norm.bryanJohnson { parts.append("Bryan Johnson \(Self.format(johnson))") }
-        if let elite = norm.elite { parts.append("elite \(Self.format(elite))") }
+        if let world = norm.worldClass {
+            parts.append("world class \(Self.format(world))" + (norm.worldClassBy.map { " (\($0))" } ?? ""))
+        }
         return parts.joined(separator: " · ") + (norm.estimated ? " · partly estimated" : "") + " · " + norm.source
     }
 
@@ -176,22 +195,23 @@ struct NormRow: View {
 
 /// The track itself: 0 to 100 people, with markers.
 private struct NormTrack: View {
-    let standing: Standing
+    let percentile: Double
+    let tint: Color
+    /// Where Bryan Johnson stands on the same track, if he has a number.
+    let johnson: Double?
 
     var body: some View {
         GeometryReader { proxy in
             let x = { (percentile: Double) -> CGFloat in proxy.size.width * percentile / 100 }
             ZStack(alignment: .leading) {
                 Capsule().fill(Ink.faint).frame(height: 6)
-                Capsule().fill(standing.norm.stat.tint.opacity(0.85))
-                    .frame(width: max(x(standing.percentile), 6), height: 6)
+                Capsule().fill(tint.opacity(0.85))
+                    .frame(width: max(x(percentile), 6), height: 6)
                 marker(at: x(50), label: "50")
                 marker(at: x(99), label: "1%")
-                if let johnson = standing.norm.bryanJohnson {
-                    marker(at: x(standing.norm.percentile(of: johnson)), label: "BJ")
-                }
+                if let johnson { marker(at: x(johnson), label: "BJ") }
                 Circle().fill(.white).frame(width: 12, height: 12)
-                    .position(x: x(standing.percentile), y: 3)
+                    .position(x: x(percentile), y: 3)
             }
         }
         .frame(height: 24)

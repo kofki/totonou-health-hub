@@ -30,8 +30,13 @@ public struct Norm: Identifiable, Sendable, Equatable {
     /// that order: "better than 10 people in 100" first. For lower-is-better
     /// norms the numbers fall along the list.
     public let points: [Double]
-    /// World-class level, when it means something (an elite endurance athlete).
-    public let elite: Double?
+    /// The same percentiles among athletes (endurance athletes, competitive
+    /// lifters…), when a study gives them; `athleteGroup` says who.
+    public let athletePoints: [Double]?
+    public let athleteGroup: String?
+    /// A world-class or record value, and whose it is.
+    public let worldClass: Double?
+    public let worldClassBy: String?
     /// Bryan Johnson's publicly reported value, when there is one.
     public let bryanJohnson: Double?
     public let source: String
@@ -39,8 +44,9 @@ public struct Norm: Identifiable, Sendable, Equatable {
     public let estimated: Bool
 
     public init(id: String, title: String, unit: String, group: Group, stat: Stat = .vitality, higherIsBetter: Bool = true,
-                points: [Double], elite: Double? = nil, bryanJohnson: Double? = nil, source: String,
-                estimated: Bool = false) {
+                points: [Double], athletes: [Double]? = nil, athleteGroup: String? = nil,
+                worldClass: Double? = nil, worldClassBy: String? = nil, bryanJohnson: Double? = nil,
+                source: String, estimated: Bool = false) {
         self.id = id
         self.title = title
         self.unit = unit
@@ -48,7 +54,10 @@ public struct Norm: Identifiable, Sendable, Equatable {
         self.stat = stat
         self.higherIsBetter = higherIsBetter
         self.points = points
-        self.elite = elite
+        self.athletePoints = athletes
+        self.athleteGroup = athleteGroup
+        self.worldClass = worldClass
+        self.worldClassBy = worldClassBy
         self.bryanJohnson = bryanJohnson
         self.source = source
         self.estimated = estimated
@@ -60,10 +69,17 @@ public struct Norm: Identifiable, Sendable, Equatable {
     /// How many people out of 100 you do better than, 0 to 100. Straight lines
     /// between the published points; below the 10th and above the 99th it
     /// tapers towards 0 and 100.
-    public func percentile(of value: Double) -> Double {
-        guard points.count == Self.ranks.count else { return 50 }
+    public func percentile(of value: Double) -> Double { Self.percentile(of: value, in: points) }
+
+    /// Where the value stands among athletes, when there is an athlete table.
+    public func athletePercentile(of value: Double) -> Double? {
+        athletePoints.map { Self.percentile(of: value, in: $0) }
+    }
+
+    static func percentile(of value: Double, in points: [Double]) -> Double {
+        guard points.count == ranks.count else { return 50 }
         // (value, rank) pairs sorted by value, so the search below can walk up.
-        let pairs = zip(points, Self.ranks).sorted { $0.0 < $1.0 }
+        let pairs = zip(points, ranks).sorted { $0.0 < $1.0 }
         // Past either end: carry on along the slope of the two nearest points,
         // stopping just short of 0 and 100 (nobody beats everyone).
         func extend(_ a: (Double, Double), _ b: (Double, Double)) -> Double {
@@ -94,7 +110,7 @@ public struct Norm: Identifiable, Sendable, Equatable {
     /// Better than 99 people in 100.
     public var topOnePercent: Double { value(atPercentile: 99) }
 
-    private func clamp(_ value: Double) -> Double { min(max(value, 0), 100) }
+    private static func clamp(_ value: Double) -> Double { min(max(value, 0), 100) }
 
     /// As a `Benchmark`, the shape the overall score (Exercise 2) reads.
     public func benchmark(for value: Double, shown: String) -> Benchmark {
