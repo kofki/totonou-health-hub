@@ -37,8 +37,12 @@ fi
 
 if [ "${1:-}" = "--claude-token" ]; then
   printf "Paste the token from 'claude setup-token' (starts with sk-ant-), then press Return: "
-  # `|| true`: a paste that ends without Return still counts.
-  read -rs OAUTH || true; echo
+  # `|| true`: a paste that ends without Return still counts. The token is
+  # printed wrapped over several lines, so keep reading lines that arrive
+  # within a second of each other: they are the rest of the same paste.
+  read -rs OAUTH || true
+  while IFS= read -rs -t 1 MORE; do OAUTH="$OAUTH$MORE"; done
+  echo
   # The token is printed indented and wrapped; drop any spaces or line breaks.
   OAUTH=$(printf '%s' "$OAUTH" | tr -d '[:space:]')
   if [ -z "$OAUTH" ]; then echo "Nothing was pasted. Run it again and paste the token."; exit 1; fi
