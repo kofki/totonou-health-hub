@@ -1,0 +1,358 @@
+import Foundation
+import Supabase
+import TotonouCore
+
+/// Where the project lives. The publishable key is meant to ship inside the app:
+/// on its own it can do nothing, because row-level security only lets a signed-in
+/// user touch their own rows. Never put a secret (service-role) key here.
+enum SupabaseConfig {
+    static let url = "https://xzxzkbpgcmwogwtkwbqp.supabase.co"
+    static let publishableKey = "sb_publishable_eL7t42cOLEohq2Si3i8jIw__H0ZyV8G"
+
+    /// One client for the whole app, so the database and the `ai` function
+    /// (CloudAI.swift) share the same signed-in session. Nil when not configured.
+    static let client: SupabaseClient? = {
+        guard let url = URL(string: url), !publishableKey.isEmpty else { return nil }
+        // Use the saved sign-in straight away instead of waiting to refresh it
+        // first; the library refreshes it in the background. (It also stops
+        // the library's launch warning about this setting.)
+        return SupabaseClient(supabaseURL: url, supabaseKey: publishableKey,
+                              options: SupabaseClientOptions(auth: .init(emitLocalSessionAsInitialSession: true)))
+    }()
+
+    /// The store the app should use: Supabase when configured, the mock otherwise.
+    static func makeStore() -> any CloudStore {
+        guard let client else { return MockCloudStore() }
+        return SupabaseCloudStore(client: client)
+    }
+
+    static var isConfigured: Bool { client != nil }
+}
+
+/// The real thing: Supabase Auth for "who is this" and Postgres for the rows.
+/// Schema: supabase/migrations at the repo root.
+final class SupabaseCloudStore: CloudStore {
+    private let client: SupabaseClient
+
+    init(client: SupabaseClient) {
+        self.client = client
+    }
+
+    /// Signs in anonymously the first time. Supabase keeps the session in the
+    /// keychain, so the same device stays the same user between launches.
+    /// (Later: Sign in with Apple, so a new phone can get the same account.)
+    func connect() async throws {
+        if (try? await client.auth.session) != nil { return }
+        try await client.auth.signInAnonymously()
+    }
+
+    func save(profile: ProfileRecord) async throws {
+        let userID = try await client.auth.session.user.id
+        do {
+            try await client.from("profiles")
+                .upsert(ProfileRow(userID: userID, profile), onConflict: "user_id")
+                .execute()
+        } catch where Self.isMissingColumn(error) {
+            // The rewards migration has not been run on this project yet.
+            // Save what the database knows, so backups keep working meanwhile.
+            var base = profile
+            base.rewards = nil
+            try await client.from("profiles")
+                .upsert(ProfileRow(userID: userID, base), onConflict: "user_id")
+                .execute()
+        }
+    }
+
+    /// The skill catalogue. Rows decode straight into `SkillDefinition`, whose
+    /// property names match the column names. A row with an unknown measure or
+    /// rarity fails to decode, so the whole read fails and the app keeps its
+    /// built-in list rather than half a catalogue.
+    func loadSkills() async throws -> [SkillDefinition] {
+        try await client.from("skills")
+            .select("id,name,detail,measure,thresholds,glyph,rarity")
+            .order("sort_order")
+            .execute()
+            .value
+    }
+
+    /// PostgREST answers PGRST204 when a row names a column the table lacks.
+    private static func isMissingColumn(_ error: Error) -> Bool {
+        let text = String(describing: error)
+        return text.contains("PGRST204") || text.contains("column")
+    }
+
+    func eraseQuests() async throws {
+        let userID = try await client.auth.session.user.id
+        try await client.from("quests").delete().eq("user_id", value: userID).execute()
+    }
+
+    func save(arcs: [ArcRecord]) async throws {
+        guard !arcs.isEmpty else { return }
+        let userID = try await client.auth.session.user.id
+        try await client.from("arcs")
+            .upsert(arcs.map { ArcUpload(userID: userID, $0) }, onConflict: "user_id,title,start_date")
+            .execute()
+    }
+
+    func save(quests: [QuestRecord]) async throws {
+        guard !quests.isEmpty else { return }
+        let userID = try await client.auth.session.user.id
+        // Upsert = insert, or update the row that already has this key.
+        try await client.from("quests")
+            .upsert(quests.map { QuestUpload(userID: userID, $0) }, onConflict: "user_id,scheduled_at,title")
+            .execute()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // EXERCISE 10 · 復元 · Restore from the cloud        (async/await, Codable)
+    //
+    // The app saves your profile to Supabase but never reads it back, so a
+    // reinstall starts you from the seed data again. Make this function return
+    // the profile stored in the cloud. The engine already knows what to do with
+    // it (QuestEngine.backUp restores it when the cloud copy has more XP).
+    //
+    // Steps
+    //   1. Read `save(profile:)` above: it shows how to reach the table.
+    //   2. Query it: client.from("profiles").select().limit(1).execute()
+    //      Row-level security already limits the result to your own row.
+    //   3. `ProfileRow` below can only be encoded. Make it `Codable` and decode
+    //      the response into `[ProfileRow]`: `.execute().value` does this when
+    //      the type you assign it to is Decodable.
+    //   4. Turn the first row back into a ProfileRecord. The dates in
+    //      completion_days come back as "2026-11-24" strings: `ProfileRow.day`
+    //      formats a Date that way, and the same formatter can parse one.
+    //   5. No row yet is not an error: return nil.
+    //
+    // You will practise: async/await with try, Codable and CodingKeys, mapping
+    // between a network type and an app type, optionals.
+    //
+    // How to check: run the app and finish a quest (Status shows "Backed up").
+    // In the Supabase table editor, add 500 to your row's total_xp. Relaunch
+    // the app: your level on Today should jump. (Deleting the app does not
+    // test this: an anonymous sign-in would make you a brand-new user.)
+    // ─────────────────────────────────────────────────────────────────────────
+    func loadProfile() async throws -> ProfileRecord? {
+        // TODO(you): Exercise 10.
+        nil
+    }
+}
+
+// The rows as Postgres spells them. CodingKeys map Swift's camelCase to the
+// snake_case column names.
+
+private struct ProfileRow: Encodable, Sendable {
+    let userID: UUID
+    let name: String
+    let totalXP: Int
+    let strength: Int
+    let endurance: Int
+    let intellect: Int
+    let discipline: Int
+    let recovery: Int
+    let bankedMinutes: Int
+    let completionDays: [String]
+    let updatedAt: String
+    let rewards: ProfileRewards?
+
+    init(userID: UUID, _ profile: ProfileRecord) {
+        rewards = profile.rewards
+        self.userID = userID
+        name = profile.name
+        totalXP = profile.totalXP
+        strength = profile.strength
+        endurance = profile.endurance
+        intellect = profile.intellect
+        discipline = profile.discipline
+        recovery = profile.recovery
+        bankedMinutes = profile.bankedMinutes
+        completionDays = profile.completionDays.map(Self.day)
+        updatedAt = Date.now.ISO8601Format()
+    }
+
+    /// A Postgres `date`: 2026-11-24, in the device's own time zone.
+    static func day(_ date: Date) -> String {
+        date.formatted(.iso8601.year().month().day().dateSeparator(.dash).timeZone(separator: .omitted))
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case name
+        case totalXP = "total_xp"
+        case strength, endurance, intellect, discipline, recovery
+        case bankedMinutes = "banked_minutes"
+        case completionDays = "completion_days"
+        case updatedAt = "updated_at"
+        case unspentStatPoints = "unspent_stat_points"
+        case streakFreezes = "streak_freezes"
+        case frozenDays = "frozen_days"
+        case emergencyPasses = "emergency_passes"
+        case titles
+        case activeTitle = "active_title"
+        case achievements
+        case clearDays = "clear_days"
+        case questsDone = "quests_done"
+        case autoDone = "auto_done"
+        case bossesDefeated = "bosses_defeated"
+        case agility, charisma, damage
+    }
+
+    // Written by hand so the reward columns are only sent when present: the
+    // fallback in save(profile:) sends a row without them.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(userID, forKey: .userID)
+        try c.encode(name, forKey: .name)
+        try c.encode(totalXP, forKey: .totalXP)
+        try c.encode(strength, forKey: .strength)
+        try c.encode(endurance, forKey: .endurance)
+        try c.encode(intellect, forKey: .intellect)
+        try c.encode(discipline, forKey: .discipline)
+        try c.encode(recovery, forKey: .recovery)
+        try c.encode(bankedMinutes, forKey: .bankedMinutes)
+        try c.encode(completionDays, forKey: .completionDays)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        guard let rewards else { return }
+        try c.encode(rewards.unspentStatPoints, forKey: .unspentStatPoints)
+        try c.encode(rewards.streakFreezes, forKey: .streakFreezes)
+        try c.encode(rewards.frozenDays.map(Self.day), forKey: .frozenDays)
+        try c.encode(rewards.emergencyPasses, forKey: .emergencyPasses)
+        try c.encode(rewards.titles, forKey: .titles)
+        try c.encode(rewards.activeTitle, forKey: .activeTitle)
+        try c.encode(rewards.achievements, forKey: .achievements)
+        try c.encode(rewards.clearDays.map(Self.day), forKey: .clearDays)
+        try c.encode(rewards.questsDone, forKey: .questsDone)
+        try c.encode(rewards.autoDone, forKey: .autoDone)
+        try c.encode(rewards.bossesDefeated, forKey: .bossesDefeated)
+        try c.encode(rewards.agility, forKey: .agility)
+        try c.encode(rewards.charisma, forKey: .charisma)
+        try c.encode(rewards.damage, forKey: .damage)
+    }
+}
+
+private struct QuestUpload: Encodable, Sendable {
+    let userID: UUID
+    let title: String
+    let stat: String
+    let rank: String
+    let source: String
+    let isCritical: Bool
+    let isRecovery: Bool
+    let scheduledAt: String
+    let durationMinutes: Int
+    let completedAt: String?
+    let failedAt: String?
+    let autoCompleted: Bool
+    let updatedAt: String
+    let arc: String?
+    let objective: String?
+    let parentTitle: String?
+    let parentScheduledAt: String?
+    let signalKey: String?
+    let target: Double?
+
+    init(userID: UUID, _ quest: QuestRecord) {
+        self.userID = userID
+        title = quest.title
+        stat = quest.stat
+        rank = quest.rank
+        source = quest.source
+        isCritical = quest.isCritical
+        isRecovery = quest.isRecovery
+        scheduledAt = quest.scheduledAt.ISO8601Format()
+        durationMinutes = quest.durationMinutes
+        completedAt = quest.completedAt?.ISO8601Format()
+        failedAt = quest.failedAt?.ISO8601Format()
+        autoCompleted = quest.autoCompleted
+        updatedAt = Date.now.ISO8601Format()
+        arc = quest.arc
+        objective = quest.objective
+        parentTitle = quest.parentTitle
+        parentScheduledAt = quest.parentScheduledAt?.ISO8601Format()
+        signalKey = quest.signalKey
+        target = quest.target
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case title, stat, rank, source
+        case isCritical = "is_critical"
+        case isRecovery = "is_recovery"
+        case scheduledAt = "scheduled_at"
+        case durationMinutes = "duration_minutes"
+        case completedAt = "completed_at"
+        case failedAt = "failed_at"
+        case autoCompleted = "auto_completed"
+        case arc, objective, target
+        case parentTitle = "parent_title"
+        case parentScheduledAt = "parent_scheduled_at"
+        case signalKey = "signal_key"
+        case updatedAt = "updated_at"
+    }
+
+    // Write nil as an explicit null, so un-completing a quest clears the column.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(userID, forKey: .userID)
+        try c.encode(title, forKey: .title)
+        try c.encode(stat, forKey: .stat)
+        try c.encode(rank, forKey: .rank)
+        try c.encode(source, forKey: .source)
+        try c.encode(isCritical, forKey: .isCritical)
+        try c.encode(isRecovery, forKey: .isRecovery)
+        try c.encode(scheduledAt, forKey: .scheduledAt)
+        try c.encode(durationMinutes, forKey: .durationMinutes)
+        try c.encode(completedAt, forKey: .completedAt)
+        try c.encode(failedAt, forKey: .failedAt)
+        try c.encode(autoCompleted, forKey: .autoCompleted)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        // Every row must send the same keys: a bulk upsert takes its columns
+        // from the rows, so a key left out on some would be dropped or nulled.
+        try c.encode(arc, forKey: .arc)
+        try c.encode(objective, forKey: .objective)
+        try c.encode(parentTitle, forKey: .parentTitle)
+        try c.encode(parentScheduledAt, forKey: .parentScheduledAt)
+        try c.encode(signalKey, forKey: .signalKey)
+        try c.encode(target, forKey: .target)
+    }
+}
+
+private struct ArcUpload: Encodable, Sendable {
+    let userID: UUID
+    let title: String
+    let kind: String
+    let manifesto: String
+    let goals: [String]
+    let goalsDone: [String]
+    let startDate: String
+    let endDate: String?
+    let endedAt: String?
+    let questPlan: [String]
+    let objectives: [ArcRecord.ObjectiveRecord]
+    let updatedAt: String
+
+    init(userID: UUID, _ arc: ArcRecord) {
+        self.userID = userID
+        title = arc.title
+        kind = arc.kind
+        manifesto = arc.manifesto
+        goals = arc.goals
+        goalsDone = arc.goalsDone
+        startDate = arc.startDate.ISO8601Format()
+        endDate = arc.endDate?.ISO8601Format()
+        endedAt = arc.endedAt?.ISO8601Format()
+        questPlan = arc.questPlan
+        objectives = arc.objectives
+        updatedAt = Date.now.ISO8601Format()
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case title, kind, manifesto, goals, objectives
+        case goalsDone = "goals_done"
+        case startDate = "start_date"
+        case endDate = "end_date"
+        case endedAt = "ended_at"
+        case questPlan = "quest_plan"
+        case updatedAt = "updated_at"
+    }
+}

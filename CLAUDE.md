@@ -1,101 +1,85 @@
-# CLAUDE.md — Health Hub ("Blueprint OS")
+# CLAUDE.md — Totonou 整う
 
-## Project Overview
-Personal health command center: Garmin Connect + VeSync ingestion, custom analytics dashboard,
-CV-powered food/calorie tracking, body-fat and acne estimation, and meal recommendations from a
-personal meal library. Goal: a Bryan Johnson-style personal health assistant.
+## Project
 
-**Dual purpose:** this is BOTH an impact project AND a learning project.
-The owner (human) is learning: Java Spring Boot, ML/DS (computer vision, analytics), and
-multi-service backend architecture. Claude must NEVER rob the owner of learning opportunities.
+Personal quest system for iOS: arcs → daily quests → auto-completion from real
+data → XP, stats and earned screen time, with shields and penalties. Personal use
+first. Product spec and current state: `README.md`.
 
----
+This is also a **learning project**. The owner is learning Swift and SwiftUI.
 
-## ⚠️ RULES FOR CLAUDE (Fable 5) — READ BEFORE EVERY TASK
+History: this repo was "Health Hub" (Spring Boot + FastAPI + Expo) until
+2026-11-24, when the owner replaced it with Totonou and asked Claude to build the
+app while leaving parts for them to write. The rules below replace the old
+"Claude writes almost nothing" rules. The owner should edit them if they are
+not what was meant.
 
-### 🔒 OVERRIDE (added 2026-07-05, supersedes everything below):
-Claude may write code for ONLY two reasons:
-1. **Solving dependency issues** (broken builds, version conflicts, tooling/env problems)
-2. **Prototyping ideas** — first-draft prototypes in `/_scratch/` for the owner to study/rewrite
+## Rules for Claude
 
-Nothing else. All other code — including areas previously delegated to Claude (integrations,
-React Native screens, CRUD boilerplate, CI/CD, Dockerfiles) — is now written by the owner.
-For everything else Claude may still: explain concepts, review code, quiz, plan, and write
-documentation (prose, not code).
-
-### Claude MUST NOT write (owner codes these manually):
-- Core data model / JPA entities & relationships
-- Spring Boot service-layer business logic
-- Spring Security / JWT auth configuration
-- Anything in `ml-service/` involving model selection, training, feature engineering,
-  or inference logic (calorie estimation, body-fat CV, acne detection, insight engine)
-- The Spring Boot ↔ Python service communication contract (owner designs it)
-- Meal recommendation algorithm
-
-If asked to help with the above: explain concepts, review the owner's code, generate a
-**first-draft example in a scratch file** for the owner to rewrite — never commit finished
-implementations of these areas.
-
-### Claude SHOULD handle (delegated work — ⚠️ superseded by the OVERRIDE above; owner now codes these, Claude prototypes/advises only):
-- Garmin / VeSync API integration glue: OAuth flows, webhook handlers, retry/rate-limit logic
-- React Native screens, components, charts, camera capture UI
-- Meal library CRUD endpoints (boilerplate only, after owner defines entities)
-- Test scaffolding + edge-case debugging AFTER owner's core logic works
-- DevOps: Dockerfiles, docker-compose, CI/CD (GitHub Actions), deployment configs
-- Repo scaffolding, linting, formatting, documentation
-
-### Hybrid learning protocol
-For NEW Spring Boot concepts: Claude generates a first-draft module in `/_scratch/` →
-owner rewrites it line-by-line in the real codebase → Claude reviews the rewrite and
-quizzes the owner on any annotation/pattern they can't explain.
-
----
+1. **Never complete an exercise.** Anything marked `TODO(you)`, anything in an
+   `Exercises/` folder, and anything listed in `LEARN.md` belongs to the owner.
+   Do not fill it in, do not "fix" its failing tests, do not paste a full
+   solution in chat. Give hints, point at similar code in the repo, review what
+   the owner wrote, and quiz them. Only write the solution if the owner
+   explicitly says they give up on that exercise.
+2. **Leave something to learn in new work.** When building a new feature, carve
+   out one or two self-contained pieces as new exercises (same format: a header
+   comment with rules, steps, what they will practise, and a way to check), add
+   them to `LEARN.md`, and keep the app building and running without them.
+3. **Explain new concepts.** When code uses a Swift or SwiftUI idea not yet in
+   the codebase, add a short comment on why, not what.
+4. **Review as a teacher.** On the owner's code: explain the problem and let
+   them fix it. Do not rewrite it.
+5. No sample data in the app (owner's request, 2026-11-24). The app shows only
+   what the user created or what a real source reported. Every outside system
+   still sits behind a protocol in `ios/Totonou/Services/`, but stand-ins
+   (`MockCloudStore`, `NoReminders`, `NoSignalSource`) are for previews and
+   tests only. If a feature has no real source yet, leave it out and say so.
 
 ## Stack
-| Layer | Tech | Who builds it |
-|---|---|---|
-| Main API | Java 21 + Spring Boot 3 (REST, JPA/Hibernate, Spring Security) | Owner |
-| ML service | Python 3.12 + FastAPI, PyTorch/timm for CV models | Owner (logic) / Claude (deploy) |
-| Frontend | React Native (Expo) | Claude |
-| DB | PostgreSQL (metrics, meals, users) + object storage for images | Owner (schema) / Claude (infra) |
-| Integrations | Garmin Connect API, VeSync API | Claude |
-| Infra | Docker Compose local, GitHub Actions CI | Claude |
 
-## Repo Layout (monorepo)
-```
-health-hub/
-├── CLAUDE.md                  # this file
-├── api/                       # Spring Boot main API (OWNER territory)
-│   └── src/main/java/com/healthhub/
-│       ├── entity/            # OWNER ONLY
-│       ├── repository/
-│       ├── service/           # OWNER ONLY
-│       ├── security/          # OWNER ONLY
-│       ├── integration/       # Claude: Garmin/VeSync clients
-│       └── controller/
-├── ml-service/                # Python FastAPI (OWNER logic)
-│   ├── models/                # OWNER ONLY: training, weights, inference
-│   ├── app/                   # OWNER: endpoints; Claude may scaffold
-│   └── notebooks/             # OWNER: EDA + experiments
-├── mobile/                    # React Native app (Claude territory)
-├── infra/                     # Claude: docker, CI, deploy
-└── _scratch/                  # Claude's teaching drafts — never imported by real code
+| Layer | Tech |
+|---|---|
+| App | Swift, SwiftUI, SwiftData, WidgetKit (iOS 18+) |
+| Shared logic | `ios/TotonouCore` Swift package, Swift Testing |
+| Cloud | Supabase (Postgres + Auth) via supabase-swift, behind `CloudStore`. Schema in `supabase/migrations/` |
+| Back end (planned) | Go on Cloud Run |
+| Data | HealthKit, EventKit (calendars incl. Google, reminders), Garmin Connect Personal API (`garmin` function). USDA FoodData Central planned |
+| AI | Foundation Models on-device (`OnDeviceAI.swift`). Without Apple Intelligence: Claude on the owner's account through the Totonou MCP server (`supabase/functions/mcp`, `ClaudeLink.swift`, `ClaudeChanges.swift`) and the Mac coach relay (`scripts/coach-relay`). The paid-API `ai` function exists but has no key. Rule-based fallbacks under all |
+| Blocking | FamilyControls, ManagedSettings, DeviceActivity (`ScreenTimeLock.swift`, `ios/TotonouMonitor` extension target) |
+
+## Commands
+
+```bash
+cd ios/TotonouCore && swift test          # 11 exercise tests fail until the owner finishes them
+xcodebuild -project ios/Totonou.xcodeproj -scheme Totonou \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
 
-## Git Workflow
-- `main` protected. Branches: `feat/`, `learn/` (owner's learning work), `claude/` (delegated).
-- Owner reviews and merges ALL `claude/` PRs — no self-merge.
-- Claude reviews `learn/` PRs with teaching-style feedback (explain, don't rewrite).
-- Conventional commits. CI must pass (build + tests) before merge.
+## Conventions
 
-## Phases
-1. **Foundation** (Owner-heavy): data model, Spring Boot core, auth. Claude: repo + CI + RN shell.
-2. **Integrations** (Claude-heavy): Garmin/VeSync ingestion. Owner: designs ingestion interface, rewrites one integration for learning.
-3. **ML/DS** (Owner-heavy): calorie CV model, body-fat + acne models, FastAPI service, insight engine. Claude: test scaffolds + deployment.
-4. **Frontend** (Claude-heavy): dashboard, charts, camera flows.
-5. **Meal engine** (Owner): recommendation logic. Claude: meal library CRUD + UI.
-6. **Polish** (Claude): CI/CD hardening, monitoring, docs.
+- Design tokens live in `TotonouCore/Theme.swift` (`Ink`, `Backdrop`, `Font.text`,
+  `Font.number`, `Font.hud`, `.caption()`). Deep blue, not black. Every difficulty
+  rank has its own colour (E grey, D jade, C blue, B violet, A gold, S red); add
+  no other colours.
+- Game messages (next quest, quest info, penalty, coach, plans) go in a
+  `SystemWindow`; everything else in a plain `SystemPanel` card.
+- Keep the UI simple (owner's request, 2026-11-24): large sans-serif text, short
+  English labels, few captions. No Japanese text in the interface (owner,
+  2026-11-24); Japanese-style drawings (kitsune, omamori, torii…) are welcome.
+- The system voice: `SystemWindow` titles in condensed capitals in [brackets];
+  body text stays in `Font.text`, sentence case, so it is easy to read.
+- Icons are `Glyph` cases drawn in `App/Glyphs.swift`, not SF Symbols or images.
+  Characters live in `App/Characters.swift` and `App/Spirits.swift`, animation
+  helpers in `App/Motion.swift`.
+  New motion must respect Reduce Motion.
+- Views never mutate XP, stats or the screen-time bank; they call `QuestEngine`.
+- Enums are stored in SwiftData as raw strings with a typed accessor.
+- The Xcode project uses synchronised folders. Do not add file references to
+  `project.pbxproj`; create files in the right folder.
 
-## Definition of "Owner Learned It"
-A concept is learned when the owner can (a) explain every line/annotation, (b) rebuild it
-without reference, and (c) pass Claude's quiz on failure modes. Until then, it stays owner-territory.
+## Git
+
+- `main` is protected. Claude works on `claude/…` branches; the owner's learning
+  work goes on `learn/…`. The owner reviews and merges everything.
+- Conventional commits.
