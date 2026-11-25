@@ -60,7 +60,7 @@ public struct WidgetSnapshot: Codable, Sendable {
 
     /// The App Group both the app and the widget belong to (Config/*.entitlements).
     /// Its UserDefaults are a small store that both processes can read.
-    public static let groupID = "group.dev.totonou.app"
+    public static let groupID = "group.dev.kenzo.totonou"
     private static let key = "widgetSnapshot"
 
     public func save() {

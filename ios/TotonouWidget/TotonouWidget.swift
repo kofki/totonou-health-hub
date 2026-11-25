@@ -10,7 +10,7 @@ import AlarmKit
 //
 // EXERCISE 7 · 窓 · Make the widget real                    (WidgetKit)
 //   Status: steps 1–3 handed over to Claude on 2026-11-24 (owner's choice):
-//   1. App Group group.dev.totonou.app on both targets (Config/*.entitlements).
+//   1. App Group group.dev.kenzo.totonou on both targets (Config/*.entitlements).
 //   2. QuestEngine.publishWidget writes a WidgetSnapshot through the group's
 //      UserDefaults and reloads the timelines (WidgetSnapshot.save()).
 //   3. currentSnapshot() reads it back, and shows "No quests yet" before the

@@ -296,7 +296,7 @@
 				CODE_SIGN_ENTITLEMENTS = Config/Totonou.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4P7FU9SG8G;
+				DEVELOPMENT_TEAM = U4YL483XHM;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Totonou;
@@ -314,7 +314,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.totonou.app;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kenzo.totonou;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -347,7 +347,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.totonou.app;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kenzo.totonou;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -360,7 +360,7 @@
 				CODE_SIGN_ENTITLEMENTS = Config/TotonouWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4P7FU9SG8G;
+				DEVELOPMENT_TEAM = U4YL483XHM;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/TotonouWidget-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Totonou;
@@ -370,7 +370,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.totonou.app.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kenzo.totonou.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -384,7 +384,7 @@
 				CODE_SIGN_ENTITLEMENTS = Config/TotonouWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 4P7FU9SG8G;
+				DEVELOPMENT_TEAM = U4YL483XHM;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Config/TotonouWidget-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Totonou;
@@ -394,7 +394,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.totonou.app.widget;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kenzo.totonou.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
