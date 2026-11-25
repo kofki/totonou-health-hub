@@ -266,7 +266,7 @@ struct EventRow: View {
         HStack(spacing: 12) {
             Text(event.isAllDay ? "All day" : event.start.clock)
                 .font(.number(15)).foregroundStyle(Ink.mute)
-                .frame(width: 52, alignment: .leading)
+                .frame(width: 80, alignment: .leading)
             Rectangle().fill(BusyFilter.isBusy(event) ? Ink.washi.opacity(0.4) : Ink.faint).frame(width: 3, height: 34)
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title).font(.text(17, weight: .medium)).foregroundStyle(Ink.mute)

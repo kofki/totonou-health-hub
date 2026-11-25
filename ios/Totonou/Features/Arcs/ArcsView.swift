@@ -144,7 +144,7 @@ private struct PlanLine: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(idea.clock).font(.number(16)).foregroundStyle(Ink.ai).frame(width: 52, alignment: .leading)
+            Text(idea.clock).font(.number(16)).foregroundStyle(Ink.ai).frame(width: 80, alignment: .leading)
             GlyphIcon(idea.stat.glyph, size: 18)
             VStack(alignment: .leading, spacing: 2) {
                 Text(idea.title).font(.text(17))
@@ -486,7 +486,7 @@ struct ArcComposer: View {
                         Rectangle().fill(.white.opacity(0.3)).frame(height: 1).padding(.vertical, 4)
                         ForEach(draft.quests) { idea in
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(idea.clock).font(.number(16)).frame(width: 52, alignment: .leading)
+                                Text(idea.clock).font(.number(16)).frame(width: 80, alignment: .leading)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(idea.title).font(.text(17))
                                     Text(idea.daysLabel).font(.text(13)).opacity(0.7)

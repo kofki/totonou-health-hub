@@ -76,7 +76,7 @@ public struct WidgetSnapshot: Codable, Sendable {
     /// For Xcode previews and the widget gallery placeholder only.
     public static let sample = WidgetSnapshot(
         questTitle: "Run 5 km · Zone 2",
-        questTime: "17:30",
+        questTime: "5:30 PM",
         questRank: .c,
         streak: 11,
         level: 7,

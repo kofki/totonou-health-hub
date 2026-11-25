@@ -15,7 +15,11 @@ struct QuestIdea: Sendable, Equatable, Identifiable, DailySlot {
     var weekdays: Set<Int> = []
 
     var id: String { title }
-    var clock: String { String(format: "%02d:%02d", hour, minute) }
+    /// "3:00 PM", the same 12-hour style as `Date.clock`.
+    var clock: String {
+        let twelve = hour % 12 == 0 ? 12 : hour % 12
+        return String(format: "%d:%02d %@", twelve, minute, hour < 12 ? "AM" : "PM")
+    }
 
     /// Stored on the arc as one line of text, which keeps the database simple.
     /// The objective is a seventh field, left off when there is none, so lines

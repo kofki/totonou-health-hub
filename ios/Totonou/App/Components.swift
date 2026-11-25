@@ -269,9 +269,10 @@ extension Date {
         formatted(.dateTime.weekday(.wide).month(.abbreviated).day().locale(Locale(identifier: "en_US")))
     }
 
-    /// 17:30
+    /// 5:30 PM
     var clock: String {
-        formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(Locale(identifier: "en_GB")))
+        // "3:00 PM": 12-hour with AM/PM (owner's choice, 2026-11-25), whatever the phone's region.
+        formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute(.twoDigits).locale(Locale(identifier: "en_US")))
     }
 
     var greeting: String {
