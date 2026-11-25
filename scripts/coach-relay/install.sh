@@ -28,7 +28,7 @@ fi
 
 if ! security find-generic-password -s totonou-coach-relay >/dev/null 2>&1; then
   printf "Paste the Totonou token (starts with tt_), then press Return: "
-  read -rs TOKEN; echo
+  read -rs TOKEN || true; echo
   TOKEN=$(printf '%s' "$TOKEN" | tr -d '[:space:]')
   case "$TOKEN" in tt_*) ;; *) echo "That does not look like a Totonou token."; exit 1 ;; esac
   security add-generic-password -s totonou-coach-relay -a totonou -w "$TOKEN" -U
@@ -37,9 +37,11 @@ fi
 
 if [ "${1:-}" = "--claude-token" ]; then
   printf "Paste the token from 'claude setup-token' (starts with sk-ant-), then press Return: "
-  read -rs OAUTH; echo
+  # `|| true`: a paste that ends without Return still counts.
+  read -rs OAUTH || true; echo
   # The token is printed indented and wrapped; drop any spaces or line breaks.
   OAUTH=$(printf '%s' "$OAUTH" | tr -d '[:space:]')
+  if [ -z "$OAUTH" ]; then echo "Nothing was pasted. Run it again and paste the token."; exit 1; fi
   case "$OAUTH" in sk-ant-*) ;; *) echo "That does not look like a Claude token (it should start with sk-ant-)."; exit 1 ;; esac
   security add-generic-password -s totonou-claude-oauth -a totonou -w "$OAUTH" -U
   echo "Claude token saved in your login keychain."
