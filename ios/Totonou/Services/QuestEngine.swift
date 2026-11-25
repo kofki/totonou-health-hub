@@ -334,7 +334,7 @@ final class QuestEngine {
     func add(_ idea: QuestIdea, arc: Arc?, context: ModelContext, now: Date = .now) {
         let quest = QuestPlanner.quests(from: [idea], on: now, arc: arc)[0]
         if quest.scheduledAt < now { quest.scheduledAt = now.addingTimeInterval(30 * 60) }
-        context.insert(quest)
+        QuestPlanner.insert(quest, from: [idea], context: context)
     }
 
     // MARK: Arcs

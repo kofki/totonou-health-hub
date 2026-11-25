@@ -148,7 +148,8 @@ private struct PlanLine: View {
             GlyphIcon(idea.stat.glyph, size: 18)
             VStack(alignment: .leading, spacing: 2) {
                 Text(idea.title).font(.text(17))
-                Text([idea.daysLabel, idea.objective].compactMap { $0 }.joined(separator: " · ")).caption(size: 13)
+                Text([idea.daysLabel, idea.objective, planStepsLabel(idea.steps)].compactMap { $0 }
+                    .joined(separator: " · ")).caption(size: 13)
             }
             Spacer()
         }

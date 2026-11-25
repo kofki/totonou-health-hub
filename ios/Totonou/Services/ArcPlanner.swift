@@ -13,6 +13,15 @@ struct QuestIdea: Sendable, Equatable, Identifiable, DailySlot {
     var objective: String? = nil
     /// Days of the week it runs, 1 = Monday … 7 = Sunday. Empty means every day.
     var weekdays: Set<Int> = []
+    /// Its checklist: each day's quest gets these as steps, in this order.
+    var steps: [StepIdea] = []
+
+    /// One step of a planned quest. It trains the quest's stat.
+    struct StepIdea: Sendable, Equatable {
+        var title: String
+        var minutes: Int = 10
+        var rank: Rank = .e
+    }
 
     var id: String { title }
     /// "3:00 PM", the same 12-hour style as `Date.clock`.
@@ -23,14 +32,29 @@ struct QuestIdea: Sendable, Equatable, Identifiable, DailySlot {
 
     /// Stored on the arc as one line of text, which keeps the database simple.
     /// The objective is a seventh field, left off when there is none, so lines
-    /// saved before objectives existed still read back.
+    /// saved before objectives existed still read back. Steps are a ninth
+    /// field, "title~minutes~rank" joined by ";", so they need the two before.
     var line: String {
         var parts = [title, stat.rawValue, "\(hour)", "\(minute)", "\(minutes)", rank.rawValue]
-        if objective != nil || !weekdays.isEmpty {
+        if objective != nil || !weekdays.isEmpty || !steps.isEmpty {
             parts.append(objective ?? "")
             parts.append(weekdays.sorted().map(String.init).joined())
         }
+        if !steps.isEmpty {
+            parts.append(steps.map { step in
+                let title = step.title.replacingOccurrences(of: ";", with: ",").replacingOccurrences(of: "~", with: "-")
+                return "\(title)~\(step.minutes)~\(step.rank.rawValue)"
+            }.joined(separator: ";"))
+        }
         return parts.map { $0.replacingOccurrences(of: "|", with: "/") }.joined(separator: "|")
+    }
+
+    private static func steps(from field: String) -> [StepIdea] {
+        field.split(separator: ";").compactMap { item in
+            let bits = item.split(separator: "~", omittingEmptySubsequences: false).map(String.init)
+            guard bits.count == 3, !bits[0].isEmpty, let minutes = Int(bits[1]), let rank = Rank(rawValue: bits[2]) else { return nil }
+            return StepIdea(title: bits[0], minutes: minutes, rank: rank)
+        }
     }
 
     /// True on the days this quest is planned for.
@@ -42,7 +66,7 @@ struct QuestIdea: Sendable, Equatable, Identifiable, DailySlot {
     var daysLabel: String { Weekday.label(weekdays) }
 
     init(title: String, stat: Stat, hour: Int, minute: Int = 0, minutes: Int = 15, rank: Rank = .d,
-         objective: String? = nil, weekdays: Set<Int> = []) {
+         objective: String? = nil, weekdays: Set<Int> = [], steps: [StepIdea] = []) {
         self.title = title
         self.stat = stat
         self.hour = min(max(hour, 5), 23)
@@ -51,15 +75,17 @@ struct QuestIdea: Sendable, Equatable, Identifiable, DailySlot {
         self.rank = rank
         self.objective = objective.flatMap { $0.isEmpty ? nil : $0 }
         self.weekdays = weekdays.filter { (1...7).contains($0) }
+        self.steps = steps
     }
 
     init?(line: String) {
         let parts = line.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
-        guard (6...8).contains(parts.count), let stat = Stat(rawValue: parts[1]), let hour = Int(parts[2]),
+        guard (6...9).contains(parts.count), let stat = Stat(rawValue: parts[1]), let hour = Int(parts[2]),
               let minute = Int(parts[3]), let minutes = Int(parts[4]), let rank = Rank(rawValue: parts[5]) else { return nil }
-        let days = parts.count == 8 ? Set(parts[7].compactMap { Int(String($0)) }) : []
+        let days = parts.count >= 8 ? Set(parts[7].compactMap { Int(String($0)) }) : []
         self.init(title: parts[0], stat: stat, hour: hour, minute: minute, minutes: minutes, rank: rank,
-                  objective: parts.count >= 7 ? parts[6] : nil, weekdays: days)
+                  objective: parts.count >= 7 ? parts[6] : nil, weekdays: days,
+                  steps: parts.count == 9 ? Self.steps(from: parts[8]) : [])
     }
 }
 

@@ -103,6 +103,7 @@ private struct ClaudeApplier {
         case .addArc: return addArc(p)
         case .endArc: return endArc(p)
         case .addObjective: return addObjective(p)
+        case .setSteps: return setSteps(p)
         case .coachMessage:
             guard let text = p.text else { return "skipped: no text" }
             ClaudeCoachNote.save(text, at: now)
@@ -141,7 +142,15 @@ private struct ClaudeApplier {
               let clock = p.time?.split(separator: ":").compactMap({ Int($0) }), clock.count == 2 else { return nil }
         return QuestIdea(title: title, stat: stat, hour: clock[0], minute: clock[1], minutes: p.minutes ?? 15,
                          rank: p.rank.flatMap(Rank.init(rawValue:)) ?? .d, objective: p.objective,
-                         weekdays: Set(p.weekdays ?? []))
+                         weekdays: Set(p.weekdays ?? []), steps: steps(p.steps))
+    }
+
+    private func steps(_ items: [ClaudeChange.Payload]?) -> [QuestIdea.StepIdea] {
+        (items ?? []).compactMap { item in
+            guard let title = item.title else { return nil }
+            return QuestIdea.StepIdea(title: title, minutes: item.minutes ?? 10,
+                                      rank: item.rank.flatMap(Rank.init(rawValue:)) ?? .e)
+        }
     }
 
     /// A quest from Claude's fields. Health-provable quests get a signal: the
@@ -172,7 +181,38 @@ private struct ClaudeApplier {
         if p.arc != nil && arc == nil { return "skipped: no arc called \(p.arc!)" }
         guard let quest = quest(p, at: time, arc: arc) else { return "skipped: bad quest" }
         context.insert(quest)
+        QuestPlanner.addSteps(steps(p.steps), to: quest, context: context)
         return "applied"
+    }
+
+    /// A checklist for a quest: in its arc's daily plan, so every day's copy
+    /// gets it, and on the open quests with that title from today on.
+    private func setSteps(_ p: ClaudeChange.Payload) -> String {
+        guard let title = p.title else { return "skipped: no title" }
+        let list = steps(p.steps)
+        guard !list.isEmpty else { return "skipped: no steps" }
+        func same(_ other: String) -> Bool { other.compare(title, options: .caseInsensitive) == .orderedSame }
+        var found = false
+
+        let planArcs = p.arc.map { name in arc(named: name).map { [$0] } ?? [] } ?? arcs().filter { $0.isActive(on: now) }
+        for arc in planArcs where arc.isActive(on: now) {
+            var plan = arc.plan
+            guard let index = plan.firstIndex(where: { same($0.title) }) else { continue }
+            plan[index].steps = list
+            arc.questPlan = plan.map(\.line)
+            found = true
+        }
+
+        var start = calendar.startOfDay(for: now)
+        if let date = day(p.date) { start = date }
+        let end = p.date == nil ? Date.distantFuture : calendar.date(byAdding: .day, value: 1, to: start)!
+        let quests = (try? context.fetch(FetchDescriptor<Quest>(predicate: #Predicate { $0.scheduledAt >= start && $0.scheduledAt < end }))) ?? []
+        for quest in quests where quest.parent == nil && quest.isOpen && same(quest.title) {
+            if let name = p.arc, quest.arc?.title.compare(name, options: .caseInsensitive) != .orderedSame { continue }
+            QuestPlanner.addSteps(list, to: quest, context: context)
+            found = true
+        }
+        return found ? "applied" : "skipped: no open or planned quest called \(title)"
     }
 
     /// A step of a quest already on that day, found by title.
@@ -219,6 +259,7 @@ private struct ClaudeApplier {
         if idea.runs(on: now), let start = calendar.date(bySettingHour: idea.hour, minute: idea.minute, second: 0, of: now),
            start > now, !exists(title: idea.title, at: start), let quest = quest(p, at: start, arc: arc) {
             context.insert(quest)
+            QuestPlanner.addSteps(idea.steps, to: quest, context: context)
         }
         return "applied"
     }
@@ -336,6 +377,9 @@ enum ClaudeSnapshot {
                     var line: [String: Any] = ["title": idea.title, "stat": idea.stat.rawValue, "rank": idea.rank.rawValue,
                                                "time": idea.clock, "minutes": idea.minutes, "days": idea.daysLabel]
                     if let objective = idea.objective { line["objective"] = objective }
+                    if !idea.steps.isEmpty {
+                        line["steps"] = idea.steps.map { ["title": $0.title, "minutes": $0.minutes, "rank": $0.rank.rawValue] }
+                    }
                     return line
                 },
                 "progress": [

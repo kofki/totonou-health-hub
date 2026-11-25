@@ -43,6 +43,7 @@ struct ClaudeChange: Decodable, Sendable, Identifiable {
         case endArc = "end_arc"
         case addObjective = "add_objective"
         case coachMessage = "coach_message"
+        case setSteps = "set_steps"
     }
 
     let id: UUID
@@ -74,6 +75,8 @@ struct ClaudeChange: Decodable, Sendable, Identifiable {
         var objective: String?
         /// For a quest: the title of the quest on the same day it is a step of.
         var partOf: String?
+        /// For a quest or daily quest: its checklist, each with title, minutes and rank.
+        var steps: [Payload]?
         var kind: String?
         var manifesto: String?
         var goals: [String]?

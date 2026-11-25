@@ -67,9 +67,12 @@ around them, for example a phone-free quest at the hour usage usually climbs.
 - mustDo is for the one or two quests a day that matter most; missing one has a penalty in the game.
 - add_daily_quest for repeating steps (with weekdays), add_quests for one-off days, add_objective to \
 give an existing arc a new count.
-- A big quest can be broken into steps: add_quests with partOf set to its title. Each step has its own \
-reward, and the big quest unlocks only when every step is done. Steps keep Today's list short: the \
-user sees one quest with its steps under it. In get_overview a quest with steps lists them under \
+- A quest can have a checklist of steps (sub-quests), like the exercises of a workout. Give new \
+quests "steps" in add_quests, add_daily_quest or create_arc; give an existing quest or daily quest \
+steps with set_steps. One more step on one day: add_quests with partOf set to the quest's title. \
+Each step has its own reward, and the quest unlocks only when every step is done. Steps keep \
+Today's list short: the user sees one quest with its steps under it. A daily plan entry lists its \
+steps under "steps". In get_overview a quest with steps lists them under \
 "steps", with "stepsDone" and "lockedUntilStepsDone"; each step also appears in quests with "partOf". \
 To remove a step, use remove_quest with its title and its quest's date and time.
 
@@ -98,6 +101,20 @@ const questProperties = {
       target: { type: "number", description: "Value to reach today: steps, hours of sleep, km run, focus minutes, or active kcal." },
     },
     required: ["signal", "target"],
+  },
+  steps: {
+    type: "array",
+    description: "Optional checklist, 1 to 8 steps in order (e.g. each exercise of a workout). Each step pays its " +
+      "own reward and the quest unlocks once all are done. On a daily quest, every day's copy gets them.",
+    items: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "A specific action under eight words, e.g. 'Bench press 4 x 6'." },
+        minutes: { type: "integer", description: "How long it takes, 1 to 120. Default 10." },
+        rank: { type: "string", enum: RANKS, description: "Difficulty. Usually E or D. Default E." },
+      },
+      required: ["title"],
+    },
   },
 };
 const questRequired = ["title", "stat", "rank", "time", "minutes"];
@@ -218,6 +235,22 @@ const TOOLS = [
     },
   },
   {
+    name: "set_steps",
+    title: "Give a quest a checklist",
+    description: "Set the steps (sub-quests) of a quest that already exists: a daily quest in an arc's plan, so " +
+      "every future day gets them, and the open copies from today on. With date, only that day's quest.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Exact title of the quest or daily quest, from get_overview." },
+        arc: { type: "string", description: "Exact title of its arc. Omit to match the quest in any running arc." },
+        date: { type: "string", description: "YYYY-MM-DD. Only that day's quest; the plan is still updated." },
+        steps: questProperties.steps,
+      },
+      required: ["title", "steps"],
+    },
+  },
+  {
     name: "add_objective",
     title: "Add an objective to an arc",
     description: "Give a running arc a new count to hit per day, per week, or in total. Then link quests to it.",
@@ -327,6 +360,7 @@ function quest(input: unknown): Json {
   };
   if (raw.why !== undefined) cleaned.why = str(raw.why, "why", 200);
   if (raw.objective !== undefined) cleaned.objective = str(raw.objective, "objective", 80);
+  if (raw.steps !== undefined) cleaned.steps = steps(raw.steps);
   if (raw.autoComplete !== undefined) {
     const auto = raw.autoComplete as Json;
     if (typeof auto !== "object" || auto === null) throw new Invalid("autoComplete must be an object");
@@ -348,6 +382,23 @@ function dailyQuest(input: unknown): Json {
     cleaned.weekdays = [...new Set(days as number[])].sort();
   }
   return cleaned;
+}
+
+/** A checklist: titles with minutes and rank. */
+function steps(value: unknown): Json[] {
+  return list(value, "steps", 1, 8).map((input) => {
+    if (typeof input !== "object" || input === null) throw new Invalid("each step must be an object");
+    const raw = input as Json;
+    const minutes = raw.minutes ?? 10;
+    if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < 1 || minutes > 120) {
+      throw new Invalid("step minutes must be a whole number from 1 to 120");
+    }
+    return {
+      title: str(raw.title, "step title", 80),
+      minutes,
+      rank: raw.rank === undefined ? "E" : oneOf(raw.rank, "step rank", RANKS),
+    };
+  });
 }
 
 function objective(input: unknown): Json {
@@ -472,6 +523,12 @@ async function call(db: SupabaseClient, userID: string, name: string, args: Json
       if (args.endDate !== undefined) payload.endDate = date(args.endDate, "endDate");
       if (kind === "seasonal" && payload.endDate === undefined) throw new Invalid("a seasonal arc needs an endDate");
       return await queue(db, userID, [{ kind: "add_arc", payload }]);
+    }
+    case "set_steps": {
+      const payload: Json = { title: str(args.title, "title", 80), steps: steps(args.steps) };
+      if (args.arc !== undefined) payload.arc = str(args.arc, "arc", 80);
+      if (args.date !== undefined) payload.date = date(args.date, "date");
+      return await queue(db, userID, [{ kind: "set_steps", payload }]);
     }
     case "end_arc":
       return await queue(db, userID, [{ kind: "end_arc", payload: { arc: str(args.arc, "arc", 80) } }]);

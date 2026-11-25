@@ -25,6 +25,27 @@ enum QuestPlanner {
         }
     }
 
+    /// Gives a quest the planned steps it does not have yet. Call it after the
+    /// quest is inserted and has its final time: steps start with it.
+    static func addSteps(_ steps: [QuestIdea.StepIdea], to quest: Quest, context: ModelContext) {
+        guard quest.isOpen, quest.parent == nil else { return }
+        for planned in steps where !quest.subquests.contains(where: { $0.title == planned.title }) {
+            let step = Quest(title: planned.title, stat: quest.stat, rank: planned.rank,
+                             // A second apart, so they keep their order (as QuestEngine.addStep does).
+                             scheduledAt: quest.scheduledAt.addingTimeInterval(Double(quest.subquests.count)),
+                             durationMinutes: planned.minutes, arc: quest.arc)
+            step.objective = quest.objective
+            context.insert(step)
+            quest.subquests.append(step)
+        }
+    }
+
+    /// Inserts a quest made from a plan, with the steps its idea lists.
+    static func insert(_ quest: Quest, from ideas: [QuestIdea], context: ModelContext) {
+        context.insert(quest)
+        if let idea = ideas.first(where: { $0.title == quest.title }) { addSteps(idea.steps, to: quest, context: context) }
+    }
+
     /// Start a new arc: save it and put its quests on today, next to the quests
     /// of any arc already running.
     /// A season runs 90 days. An objective has no end date: it runs until you close it.
@@ -46,7 +67,7 @@ enum QuestPlanner {
             context.insert(objective)
             arc.objectives.append(objective)
         }
-        for quest in quests(from: draft.quests, on: now, arc: arc) { context.insert(quest) }
+        for quest in quests(from: draft.quests, on: now, arc: arc) { insert(quest, from: draft.quests, context: context) }
     }
 }
 
@@ -90,7 +111,7 @@ enum Bootstrap {
                 if let free = DayPlanner.firstFreeStart(at: quest.scheduledAt, minutes: quest.durationMinutes, busy: busy, dayEnd: end) {
                     quest.scheduledAt = free
                 }
-                context.insert(quest)
+                QuestPlanner.insert(quest, from: arc.plan, context: context)
             }
         }
     }
