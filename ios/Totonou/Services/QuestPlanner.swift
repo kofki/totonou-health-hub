@@ -78,11 +78,12 @@ enum Bootstrap {
         clearSeedDataOnce(context)
         closeSupersededArcsOnce(context)
         if ((try? context.fetchCount(FetchDescriptor<Player>())) ?? 0) == 0 {
-            context.insert(Player(name: "Human"))
+            context.insert(Player(name: "Kenzo"))
         }
-        // Older installs were created with the default name "Hunter".
-        if let player = try? context.fetch(FetchDescriptor<Player>()).first, player.name == "Hunter" {
-            player.name = "Human"
+        // Older installs were named "Hunter" or "Human" by default. The owner's
+        // name is Kenzo (2026-11-25); a name chosen in Status is left alone.
+        if let player = try? context.fetch(FetchDescriptor<Player>()).first, ["Hunter", "Human"].contains(player.name) {
+            player.name = "Kenzo"
         }
         rollDailyQuests(context, now: now)
     }
